@@ -72,3 +72,11 @@ export function maskSelectors(email) {
   }
   return selectors
 }
+
+// Confirmed on the real login page (2026-10-11); the registration form on the same page has
+// ambiguous email/passwd fields, so always scope to #login_form
+export const LOGIN_SELECTORS = {
+  email: '#login_form #emaillogin',
+  password: '#login_form #passwdlogin',
+  submit: '#login_form #SubmitLogin',
+}

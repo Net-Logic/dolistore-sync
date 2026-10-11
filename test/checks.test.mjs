@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import {
-  diffCategories, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, diffCategories, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
 } from '../src/checks.mjs'
 import { parseLangFile } from '../src/data.mjs'
 import { toHtml } from '../src/markdown.mjs'
@@ -113,4 +113,18 @@ test('mask value selector is omitted without an e-mail', () => {
   for (const email of [undefined, '']) {
     assert.equal(maskSelectors(email).some((s) => s.startsWith('input[value=')), false)
   }
+})
+
+test('login selectors are the ones confirmed on the real page, scoped to #login_form', () => {
+  assert.deepEqual(LOGIN_SELECTORS, {
+    email: '#login_form #emaillogin',
+    password: '#login_form #passwdlogin',
+    submit: '#login_form #SubmitLogin',
+  })
+})
+
+test('the masks cover the real login fields (name=email, type=password)', () => {
+  const list = maskSelectors('me@example.com')
+  assert.ok(list.includes('input[type="password"]'))
+  assert.ok(list.includes('input[name*="mail" i]:not([name="contact_support"])'))
 })

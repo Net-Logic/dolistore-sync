@@ -1,25 +1,23 @@
 import {
-  SUBMITTED_PREFIX, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, SUBMITTED_PREFIX, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
 
-// Selectors to be confirmed by the first dry run (see plan task 7 steps 5-6)
+// Selectors confirmed on the real page (2026-10-11): #login_form #emaillogin / #passwdlogin / #SubmitLogin
 export async function login(page, { login: email, password }) {
   await page.goto(`${BASE}/login-register.php`)
-  // The sign-in form is the one holding the password field (not the first matches on the page)
+  // The registration form on the same page has its own e-mail/password fields: stay inside #login_form
   // Playwright errors can echo the filled value: never rethrow the original error
   try {
-    const form = page.locator('form:has(input[type="password"])').first()
-    await form.getByLabel(/e-?mail/i).first().fill(email)
-    await form.locator('input[type="password"]').first().fill(password)
+    await page.locator(LOGIN_SELECTORS.email).fill(email)
+    await page.locator(LOGIN_SELECTORS.password).fill(password)
+    await page.locator(LOGIN_SELECTORS.submit).click()
   } catch {
-    throw new Error('DoliStore login form not usable (selectors to be confirmed)')
+    throw new Error('DoliStore login form not usable (selectors changed?)')
   }
-  await Promise.all([
-    page.waitForLoadState('domcontentloaded'),
-    page.locator('form:has(input[type="password"])').first().getByRole('button', { name: /connexion|sign in|se connecter/i }).first().click(),
-  ])
+  // A wrong password stays on login-register.php: the timeout is not an error by itself
+  await page.waitForURL((url) => !url.pathname.includes('login-register.php'), { timeout: 15000 }).catch(() => {})
   if (page.url().includes('login-register.php')) {
     throw new Error('DoliStore login failed: check DOLISTORE_LOGIN / DOLISTORE_PASSWORD (not retrying, to avoid locking the account)')
   }
