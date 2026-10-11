@@ -4,8 +4,11 @@ import { chromium } from 'playwright'
 import { loadModuleData } from './data.mjs'
 import { validate } from './validate.mjs'
 import { buildFormValues } from './form.mjs'
-import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
-import { fillForm, login, openProduct, submit, planScreenshots, uploadScreenshots, uploadZip } from './browser.mjs'
+import { assertZipMatchesVersion, readModuleVersion, toStoreVersion } from './version.mjs'
+import {
+  assertRealRunElements, fillForm, login, openProduct, planScreenshots, screenshotOptions, submit, uploadScreenshots, uploadZip,
+} from './browser.mjs'
+import { installReadOnlyGuard } from './checks.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
@@ -27,28 +30,36 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
   const browser = await chromium.launch()
   const context = await browser.newContext()
   const page = await context.newPage()
+  // Set only once login() has returned: its failures never get a screenshot (the login may be typed in)
+  let loggedIn = false
   try {
     await login(page, { login: email, password })
+    loggedIn = true
     await openProduct(page, data.product.id)
+    // Dry run is strictly read-only: every non-GET/HEAD request is aborted and recorded
+    const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
     await fillForm(page, values)
     // A dry run never sets the zip input nor adds screenshots: it only reports them
     let screenshots
     if (dryRun) {
       screenshots = await planScreenshots(page, data.screenshots)
+      await assertRealRunElements(page, { screenshots: screenshots.wouldAdd > 0 })
     } else {
       await uploadZip(page, zipPath)
       screenshots = await uploadScreenshots(page, data.screenshots)
     }
     // Never write the credentials: only the values sent to the form
-    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun }, null, 2))
-    await page.screenshot({ path: join(outDir, 'dolistore-form.png'), fullPage: true })
+    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun, abortedWrites }, null, 2))
+    await page.screenshot(screenshotOptions(page, join(outDir, 'dolistore-form.png')))
     if (dryRun) {
       return { submitted: false, values }
     }
-    await submit(page, data.product.id, basename(zipPath))
+    await submit(page, data.product.id, basename(zipPath), toStoreVersion(version))
     return { submitted: true, values }
   } catch (error) {
-    await page.screenshot({ path: join(outDir, 'dolistore-error.png'), fullPage: true }).catch(() => {})
+    if (loggedIn) {
+      await page.screenshot(screenshotOptions(page, join(outDir, 'dolistore-error.png'))).catch(() => {})
+    }
     throw error
   } finally {
     await browser.close()

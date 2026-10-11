@@ -1,19 +1,24 @@
+import {
+  SUBMITTED_PREFIX, diffCategories, isEditorSynced, productHrefPattern, screenshotMaskSelector,
+} from './checks.mjs'
+
 const BASE = 'https://www.dolistore.com'
 
 // Selectors to be confirmed by the first dry run (see plan task 7 steps 5-6)
 export async function login(page, { login: email, password }) {
   await page.goto(`${BASE}/login-register.php`)
-  // The sign-in form is the first one with an e-mail and a password field
+  // The sign-in form is the one holding the password field (not the first matches on the page)
   // Playwright errors can echo the filled value: never rethrow the original error
   try {
-    await page.getByLabel(/e-?mail/i).first().fill(email)
-    await page.locator('input[type="password"]').first().fill(password)
+    const form = page.locator('form:has(input[type="password"])').first()
+    await form.getByLabel(/e-?mail/i).first().fill(email)
+    await form.locator('input[type="password"]').first().fill(password)
   } catch {
     throw new Error('DoliStore login form not usable (selectors to be confirmed)')
   }
   await Promise.all([
     page.waitForLoadState('domcontentloaded'),
-    page.getByRole('button', { name: /connexion|sign in|se connecter/i }).first().click(),
+    page.locator('form:has(input[type="password"])').first().getByRole('button', { name: /connexion|sign in|se connecter/i }).first().click(),
   ])
   if (page.url().includes('login-register.php')) {
     throw new Error('DoliStore login failed: check DOLISTORE_LOGIN / DOLISTORE_PASSWORD (not retrying, to avoid locking the account)')
@@ -30,17 +35,40 @@ async function setText(page, name, value) {
   if (await field.count() === 0) {
     throw new Error(`DoliStore form changed: field "${name}" not found`)
   }
-  // Long descriptions are CKEditor instances backed by a textarea of the same name
-  await page.evaluate(({ name: n, value: v }) => {
+  // Long descriptions are CKEditor instances backed by a textarea: found by id, then by name
+  const result = await page.evaluate(async ({ name: n, value: v }) => {
     const el = document.querySelector(`#product-creation-form [name="${n}"]`)
-    const editor = window.CKEDITOR && window.CKEDITOR.instances && window.CKEDITOR.instances[n]
-    if (editor) {
-      editor.setData(v)
+    const instances = (window.CKEDITOR && window.CKEDITOR.instances) || {}
+    const editor = (el.id && instances[el.id]) || instances[n]
+    const isDescription = n.startsWith('description_')
+    if (isDescription && !editor) {
+      const style = window.getComputedStyle(el)
+      if (style.display === 'none' || style.visibility === 'hidden' || el.offsetParent === null) {
+        return { error: 'no-instance' }
+      }
     }
-    el.value = v
+    let got = null
+    if (editor) {
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 5000)
+        editor.setData(v, { callback: () => { clearTimeout(timer); resolve() } })
+      })
+      got = editor.getData()
+      if (typeof editor.updateElement === 'function') {
+        editor.updateElement()
+      }
+    }
+    el.value = editor ? got : v
     el.dispatchEvent(new Event('input', { bubbles: true }))
     el.dispatchEvent(new Event('change', { bubbles: true }))
+    return { editor: Boolean(editor), got }
   }, { name, value })
+  if (result.error === 'no-instance') {
+    throw new Error(`DoliStore form changed: no editor instance for ${name}`)
+  }
+  if (name.startsWith('description_') && !isEditorSynced(value, result.got)) {
+    throw new Error(`description editor not synchronised (${name})`)
+  }
 }
 
 export async function fillForm(page, values) {
@@ -50,14 +78,32 @@ export async function fillForm(page, values) {
   for (const [name, value] of Object.entries(values.selects)) {
     await page.locator(`#product-creation-form select[name="${name}"]`).selectOption(value)
   }
-  // Categories: exactly the wanted ones are checked, others are unchecked
-  await page.evaluate((wanted) => {
-    for (const box of document.querySelectorAll('#product-creation-form input[name="categories[]"]')) {
-      if (box.checked !== wanted.includes(box.value)) {
+  // Categories: uncheck everything first, then check the wanted ones, then verify the result
+  const state = await page.evaluate((wanted) => {
+    const boxes = [...document.querySelectorAll('#product-creation-form input[name="categories[]"]')]
+    for (const box of boxes) {
+      if (box.checked) {
         box.click()
       }
     }
+    const absent = []
+    for (const id of wanted) {
+      const box = boxes.find((b) => b.value === id)
+      if (!box) {
+        absent.push(id)
+      } else if (!box.checked) {
+        box.click()
+      }
+    }
+    return { absent, checked: boxes.filter((b) => b.checked).map((b) => b.value) }
   }, values.categories)
+  if (state.absent.length > 0) {
+    throw new Error(`DoliStore form changed: no checkbox for category id(s) ${state.absent.join(', ')}`)
+  }
+  const diff = diffCategories(state.checked, values.categories)
+  if (diff.missing.length > 0 || diff.extra.length > 0) {
+    throw new Error(`Categories not as wanted: missing [${diff.missing.join(', ')}], unexpected [${diff.extra.join(', ')}]`)
+  }
   const terms = page.locator('#dolibarr_terms')
   if (!(await terms.isChecked())) {
     throw new Error('The seller terms checkbox is not accepted on this product: accept it once by hand')
@@ -70,6 +116,9 @@ export async function uploadZip(page, zipPath) {
 
 // Read-only: what uploadScreenshots would do (safe in a dry run)
 export async function planScreenshots(page, files) {
+  if (await page.locator('#table-body-edit').count() === 0) {
+    throw new Error('DoliStore form changed: #table-body-edit not found')
+  }
   const existing = await page.locator('#table-body-edit tr[data-id]').count()
   if (existing > 0) {
     return { wouldAdd: 0, reason: 'product already has screenshots' }
@@ -80,6 +129,20 @@ export async function planScreenshots(page, files) {
   return { wouldAdd: files.length, reason: 'product has none yet' }
 }
 
+const screenshotRows = (page) => page.locator('#table-body-edit tr[data-id]').count()
+
+async function waitForRows(page, expected) {
+  try {
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('#table-body-edit tr[data-id]').length >= n,
+      expected,
+      { timeout: 30000 },
+    )
+  } catch {
+    throw new Error('screenshots not accepted')
+  }
+}
+
 // Selectors to be confirmed by the first dry run (see plan task 7 steps 5-6)
 // Real submission only (a dry run uses planScreenshots, which changes nothing).
 // Adds screenshots only when the product has none yet; never touches existing images
@@ -88,18 +151,75 @@ export async function uploadScreenshots(page, files) {
   if (plan.wouldAdd === 0) {
     return { added: 0, skipped: plan.reason }
   }
-  for (const file of files) {
-    await page.locator('#fileInput2').setInputFiles(file)
+  const input = page.locator('#fileInput2')
+  const before = await screenshotRows(page)
+  if (await input.getAttribute('multiple') !== null) {
+    await input.setInputFiles(files)
+    await waitForRows(page, before + files.length)
+  } else {
+    for (let i = 0; i < files.length; i++) {
+      await input.setInputFiles(files[i])
+      await waitForRows(page, before + i + 1)
+    }
+  }
+  if (await screenshotRows(page) < before + files.length) {
+    throw new Error('screenshots not accepted')
   }
   return { added: files.length }
 }
 
-export async function submit(page, id, zipName) {
-  await Promise.all([page.waitForLoadState('domcontentloaded'), page.locator('#sub').click()])
-  await page.goto(`${BASE}/manage-products.php`)
-  const row = page.locator('tr', { has: page.locator(`a[href="edit-module-product.php?id=${id}"]`) })
-  const text = await row.first().innerText()
-  if (!text.includes(zipName)) {
-    throw new Error(`Submission not confirmed: "${zipName}" not found in the product row of manage-products.php`)
+// Read-only check (no click) that the elements only a real run uses are still there
+export async function assertRealRunElements(page, { screenshots }) {
+  const selectors = ['#virtual_product_file', '#sub', '#dolibarr_terms']
+  if (screenshots) {
+    selectors.push('#fileInput2')
+  }
+  for (const selector of selectors) {
+    if (await page.locator(selector).count() === 0) {
+      throw new Error(`DoliStore form changed: ${selector} not found`)
+    }
+  }
+}
+
+// Masks inputs and the account header/nav (best effort: the selectors are guesses)
+export function screenshotOptions(page, path) {
+  return {
+    path,
+    fullPage: true,
+    mask: [page.locator('input'), page.locator(screenshotMaskSelector)],
+  }
+}
+
+export async function submit(page, id, zipName, expectedVersion) {
+  if (await page.locator('#sub').count() === 0) {
+    throw new Error('DoliStore form changed: #sub not found')
+  }
+  // From the click on, the submission may have gone through whatever happens next
+  try {
+    await Promise.all([page.waitForLoadState('domcontentloaded'), page.locator('#sub').click({ timeout: 300000 })])
+    const notice = await page.locator('.alert-danger, .alert-error, .error, .errors').first().innerText({ timeout: 1000 }).catch(() => '')
+    if (notice.trim()) {
+      throw new Error(`error notice on the result page: ${notice.trim().slice(0, 200)}`)
+    }
+    await openProduct(page, id)
+    const version = await page.locator('#product-creation-form [name="version"]').inputValue()
+    if (version !== expectedVersion) {
+      throw new Error(`version on DoliStore is "${version}", expected "${expectedVersion}"`)
+    }
+    await page.goto(`${BASE}/manage-products.php`)
+    const text = await page.evaluate((source) => {
+      const re = new RegExp(source)
+      const link = [...document.querySelectorAll('a[href*="edit-module-product.php?id="]')].find((a) => re.test(a.getAttribute('href')))
+      const row = link && link.closest('tr')
+      return row ? row.innerText : null
+    }, productHrefPattern(id))
+    if (text === null) {
+      throw new Error('product row not found in manage-products.php')
+    }
+    if (!text.includes(zipName)) {
+      throw new Error(`"${zipName}" not found in the product row of manage-products.php`)
+    }
+  } catch (error) {
+    throw new Error(`${SUBMITTED_PREFIX}: ${error.message}`)
   }
 }
