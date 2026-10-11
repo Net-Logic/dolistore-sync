@@ -73,3 +73,54 @@ test('a product that is not a mapping gives a single error and does not crash', 
     assert.deepEqual(validate(d, ctx), ['product.yml: must be a mapping of keys'])
   }
 })
+
+test('a language entry that is null or whitespace-only fails', () => {
+  const d = good(); d.langs.fr = null
+  assert.match(validate(d, ctx).join('\n'), /dolistore\/fr\.md: invalid content/)
+  const e = good(); e.langs.fr.title = '   \n '
+  assert.match(validate(e, ctx).join('\n'), /fr.*title/i)
+})
+
+test('dolibarr and php must be mappings with min and max', () => {
+  const scalar = good(); scalar.product.dolibarr = 'V10'
+  assert.match(validate(scalar, ctx).join('\n'), /"dolibarr" must be a mapping with min and max/)
+  const empty = good(); empty.product.dolibarr = {}
+  const emptyErrors = validate(empty, ctx).join('\n')
+  assert.match(emptyErrors, /"dolibarr\.min" is missing/)
+  assert.match(emptyErrors, /"dolibarr\.max" is missing/)
+  const onlyMin = good(); onlyMin.product.php = { min: '7.4' }
+  assert.match(validate(onlyMin, ctx).join('\n'), /"php\.max" is missing/)
+  const phpScalar = good(); phpScalar.product.php = '8.5'
+  assert.match(validate(phpScalar, ctx).join('\n'), /"php" must be a mapping with min and max/)
+})
+
+test('php min greater than php max fails, compared as numbers', () => {
+  const d = good(); d.product.php = { min: '8.5', max: '7.4' }
+  assert.match(validate(d, ctx).join('\n'), /php min \(8\.5\) is greater than max \(7\.4\)/)
+  const e = good(); e.product.php = { min: '7.10', max: '7.9' }
+  assert.match(validate(e, ctx).join('\n'), /is greater than max/)
+})
+
+test('categories must be a non-empty list', () => {
+  const d = good(); d.product.categories = 'Modules/Plugins'
+  assert.match(validate(d, ctx).join('\n'), /"categories" must be a list/)
+  const e = good(); e.product.categories = []
+  assert.match(validate(e, ctx).join('\n'), /product\.yml: at least one category is required/)
+})
+
+test('prototype property names are not accepted as categories or Dolibarr versions', () => {
+  const d = good(); d.product.categories = ['toString']
+  assert.match(validate(d, ctx).join('\n'), /Unknown category "toString"/)
+  const e = good(); e.product.dolibarr = { min: 'constructor', max: 'V24' }
+  assert.match(validate(e, ctx).join('\n'), /Unknown Dolibarr version "constructor" for min/)
+})
+
+test('the zip size error is a plain message', () => {
+  const errors = validate(good(), { version: '2.0.2', zipBytes: 81 * 1024 * 1024 })
+  assert.deepEqual(errors, ['The zip is larger than 80 MB (DoliStore limit)'])
+})
+
+test('a date-style version is accepted and 1.2.3-beta still fails', () => {
+  assert.deepEqual(validate(good(), { version: '2026-09-15', zipBytes: 1000 }), [])
+  assert.match(validate(good(), { version: '1.2.3-beta', zipBytes: 1000 }).join('\n'), /1\.2\.3-beta/)
+})
