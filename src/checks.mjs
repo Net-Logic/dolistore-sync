@@ -15,6 +15,19 @@ export function formatRefusal(text) {
   return `${REFUSED_PREFIX}: ${clean.length > 3000 ? `${clean.slice(0, 3000)}...` : clean}`
 }
 
+// The validator's reasons sit in the page text but not always in a matched CSS element:
+// take the body text from "There are N errors" up to the form that follows
+export function extractRefusal(bodyText) {
+  const text = String(bodyText ?? '')
+  const start = text.search(/There (?:is|are) \d+ errors?|Il y a \d+ erreurs?/i)
+  if (start === -1) {
+    return ''
+  }
+  const rest = text.slice(start)
+  const cut = rest.search(/Before submitting a module|Avant de soumettre/i)
+  return (cut === -1 ? rest.slice(0, 2500) : rest.slice(0, cut)).trim()
+}
+
 // Dry run is the default: only an explicit --submit does a real run (--dry-run wins if both are given)
 export function isDryRun(values) {
   return !values.submit || Boolean(values['dry-run'])

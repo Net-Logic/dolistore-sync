@@ -1,5 +1,5 @@
 import {
-  LOGIN_SELECTORS, SUBMITTED_PREFIX, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, SUBMITTED_PREFIX, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -202,7 +202,10 @@ export async function submit(page, id, zipName, expectedVersion) {
   try {
     await Promise.all([page.waitForLoadState('domcontentloaded'), page.locator('#sub').click({ timeout: 300000 })])
     const notices = await page.locator('.alert-danger, .alert-error, .error, .errors').allInnerTexts().catch(() => [])
-    const notice = notices.join(' ').trim()
+    const selectorText = notices.join(' ').trim()
+    const bodyText = await page.locator('body').innerText({ timeout: 5000 }).catch(() => '')
+    const extracted = extractRefusal(bodyText)
+    const notice = extracted.length > selectorText.length ? extracted : selectorText
     if (notice) {
       const refusal = new Error(formatRefusal(notice))
       refusal.refused = true

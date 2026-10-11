@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import {
-  LOGIN_SELECTORS, REFUSED_PREFIX, diffCategories, formatRefusal, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, REFUSED_PREFIX, diffCategories, extractRefusal, formatRefusal, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
 } from '../src/checks.mjs'
 import { parseLangFile } from '../src/data.mjs'
 import { toHtml } from '../src/markdown.mjs'
@@ -145,4 +145,36 @@ test('a secret inside a refusal text is still masked', () => {
   const masked = maskSecrets(formatRefusal('file me@x.fr is bad, pw1'), ['pw1', 'me@x.fr'])
   assert.equal(masked.includes('pw1') || masked.includes('me@x.fr'), false)
   assert.match(masked, /^DoliStore refused the submission/)
+})
+
+const reasons = `1. The call of your module class should not be done with DOL_DOCUMENT_ROOT, the file "X.php" of module "m" is wrong, you must correct the line below with "dol_include_once": require_once DOL_DOCUMENT_ROOT.'/custom/m/lib/x.php';
+
+Your zip file does not respect Dolibarr package rules. See Dolibarr wiki developer documentation
+If you think this is an error or don't understand this message, send your package by email at dolistore@dolibarr.org`
+const page = (head, marker) => `Menu\nHome\n${head}\n${reasons}\n${marker}\nPRODUCT: x`
+
+test('extractRefusal gets the numbered reasons (English page)', () => {
+  const out = extractRefusal(page('There are 1 error', 'Before submitting a module, make sure it complies with validation rules'))
+  assert.ok(out.startsWith('There are 1 error'))
+  assert.ok(out.includes('dol_include_once'))
+  assert.ok(out.includes('dolistore@dolibarr.org'))
+  assert.equal(out.includes('Before submitting'), false)
+  assert.equal(out.includes('Menu'), false)
+})
+
+test('extractRefusal gets the reasons on the French page', () => {
+  const out = extractRefusal(page('Il y a 2 erreurs', 'Avant de soumettre un module, vérifiez les règles'))
+  assert.ok(out.startsWith('Il y a 2 erreurs'))
+  assert.ok(out.includes('dol_include_once'))
+  assert.equal(out.includes('Avant de soumettre'), false)
+})
+
+test('extractRefusal returns an empty string without an error', () => {
+  assert.equal(extractRefusal('Menu\nBefore submitting a module, make sure\nPRODUCT: x'), '')
+  assert.equal(extractRefusal(undefined), '')
+})
+
+test('extractRefusal is limited to 2500 characters when there is no cut marker', () => {
+  const out = extractRefusal(`There is 1 error\n${'y'.repeat(6000)}`)
+  assert.equal(out.length, 2500)
 })
