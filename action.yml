@@ -11,7 +11,7 @@ inputs:
     description: Package zip to upload
     required: true
   dry-run:
-    description: "'true' fills the form and stops; 'false' submits"
+    description: "Submits only when exactly 'false'; any other value fills the form and stops"
     default: 'true'
   login:
     description: DoliStore login
@@ -19,12 +19,13 @@ inputs:
   password:
     description: DoliStore password
     required: true
+# Pin this action to a tag or a commit SHA before the rollout to other modules (do not use @main)
 runs:
   using: composite
   steps:
     - uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
     - name: Install the tool
       shell: bash
       working-directory: ${{ github.action_path }}
@@ -36,14 +37,21 @@ runs:
       env:
         DOLISTORE_LOGIN: ${{ inputs.login }}
         DOLISTORE_PASSWORD: ${{ inputs.password }}
+        IN_MODULE: ${{ inputs.module-path }}
+        IN_DESCRIPTOR: ${{ inputs.descriptor }}
+        IN_ZIP: ${{ inputs.zip }}
+        IN_DRYRUN: ${{ inputs.dry-run }}
+        IN_OUT: ${{ runner.temp }}/dolistore-out
+        ACTION_PATH: ${{ github.action_path }}
       run: |
-        ARGS=""
-        if [ "${{ inputs.dry-run }}" = "true" ]; then ARGS="--dry-run"; fi
-        node "${{ github.action_path }}/bin/dolistore-sync.mjs" \
-          --module "${{ inputs.module-path }}" \
-          --descriptor "${{ inputs.descriptor }}" \
-          --zip "${{ inputs.zip }}" \
-          --out "${{ runner.temp }}/dolistore-out" $ARGS
+        # Fail closed: a real submission only when the input is exactly "false"
+        ARGS=()
+        if [ "$IN_DRYRUN" = "false" ]; then ARGS+=(--submit); fi
+        node "$ACTION_PATH/bin/dolistore-sync.mjs" \
+          --module "$IN_MODULE" \
+          --descriptor "$IN_DESCRIPTOR" \
+          --zip "$IN_ZIP" \
+          --out "$IN_OUT" "${ARGS[@]}"
     - name: Keep the form screenshot
       if: always()
       uses: actions/upload-artifact@v4

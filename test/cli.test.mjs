@@ -28,3 +28,15 @@ test('cli with a missing zip fails with "zip not found" before any browser use',
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /zip not found/)
 })
+
+test('cli accepts --submit (reaches the zip check, no option error)', () => {
+  const module = fileURLToPath(new URL('./fixtures/goodmodule', import.meta.url))
+  const r = spawnSync('node', [bin, '--module', module, '--descriptor', 'core/modules/modGood.class.php', '--zip', join(tmpdir(), 'dolistore-sync-no-such.zip'), '--submit'], { encoding: 'utf8', env })
+  assert.match(r.stderr, /zip not found/)
+})
+
+test('cli still accepts the --dry-run alias', () => {
+  const module = fileURLToPath(new URL('./fixtures/goodmodule', import.meta.url))
+  const r = spawnSync('node', [bin, '--module', module, '--descriptor', 'core/modules/modGood.class.php', '--zip', join(tmpdir(), 'dolistore-sync-no-such.zip'), '--dry-run'], { encoding: 'utf8', env })
+  assert.match(r.stderr, /zip not found/)
+})
