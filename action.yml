@@ -1,0 +1,54 @@
+name: DoliStore sync
+description: Update a DoliStore product from the dolistore/ folder of a module and a release zip
+inputs:
+  module-path:
+    description: Module repository path
+    default: '.'
+  descriptor:
+    description: Module descriptor path inside the module (for the version)
+    required: true
+  zip:
+    description: Package zip to upload
+    required: true
+  dry-run:
+    description: "'true' fills the form and stops; 'false' submits"
+    default: 'true'
+  login:
+    description: DoliStore login
+    required: true
+  password:
+    description: DoliStore password
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install the tool
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        npm ci
+        npx playwright install --with-deps chromium
+    - name: Run
+      shell: bash
+      env:
+        DOLISTORE_LOGIN: ${{ inputs.login }}
+        DOLISTORE_PASSWORD: ${{ inputs.password }}
+      run: |
+        ARGS=""
+        if [ "${{ inputs.dry-run }}" = "true" ]; then ARGS="--dry-run"; fi
+        node "${{ github.action_path }}/bin/dolistore-sync.mjs" \
+          --module "${{ inputs.module-path }}" \
+          --descriptor "${{ inputs.descriptor }}" \
+          --zip "${{ inputs.zip }}" \
+          --out "${{ runner.temp }}/dolistore-out" $ARGS
+    - name: Keep the form screenshot
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dolistore-form
+        path: ${{ runner.temp }}/dolistore-out
+        if-no-files-found: ignore
+        retention-days: 7
