@@ -1,5 +1,6 @@
 import test from 'node:test'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import {
   diffCategories, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
@@ -80,9 +81,9 @@ test('editor sync never interprets escaped markup as a tag', () => {
   assert.equal(isEditorSynced('<p>&lt;b&gt;x</p>', '<p>x</p>'), false)
 })
 
-const pilotFr = '/home/fred/dolibarr/dolibarr_dolidev/prune-dolistore-pilot/dolistore/fr.md'
-test('real pilot fr.md survives CKEditor-style numeric entity encoding', { skip: !existsSync(pilotFr) }, () => {
-  const html = toHtml(parseLangFile(readFileSync(pilotFr, 'utf8')).long)
+const sampleFr = fileURLToPath(new URL('./fixtures/goodmodule/dolistore/fr.md', import.meta.url))
+test('a French long description survives CKEditor-style numeric entity encoding', () => {
+  const html = toHtml(parseLangFile(readFileSync(sampleFr, 'utf8')).long)
   const encoded = html.replace(/[^\x00-\x7f]/gu, (c) => `&#${c.codePointAt(0)};`)
   assert.notEqual(encoded, html, 'fixture should contain non-ASCII text')
   assert.equal(isEditorSynced(html, encoded), true)
