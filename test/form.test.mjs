@@ -26,7 +26,7 @@ test('maps the data to the real field names of the DoliStore form', () => {
   assert.equal(v.text.phpmin, '7.4')
   assert.equal(v.text.phpmax, '8.5')
   assert.equal(v.text.validityduration, '365')
-  assert.equal(v.text.sale_price, '0,00')
+  assert.equal('sale_price' in v.text, false)
   assert.equal(v.text.contact_support, 'dolibarr@netlogic.fr')
   assert.equal(v.text.keywords, 'prune, autoload')
   assert.deepEqual(v.selects, { version_min: '89', version_max: '120' })

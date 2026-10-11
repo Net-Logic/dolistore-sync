@@ -138,3 +138,9 @@ test('php values must be quoted strings (YAML 8.10 would become 8.1)', () => {
   const e = good(); e.product.php.min = 7
   assert.match(validate(e, ctx).join('\n'), /php\.min must be quoted/)
 })
+
+test('price is optional and ignored: absent or present, both valid', () => {
+  const d = good(); delete d.product.price
+  assert.deepEqual(validate(d, ctx), [])
+  assert.deepEqual(validate(good(), ctx), [])
+})

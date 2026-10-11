@@ -3,7 +3,8 @@ import {
 } from './constants.mjs'
 import { toStoreVersion } from './version.mjs'
 
-const REQUIRED = ['id', 'dolibarr', 'php', 'access_days', 'price', 'support', 'categories']
+// "price" is optional and ignored: it is managed on DoliStore and never sent
+const REQUIRED = ['id', 'dolibarr', 'php', 'access_days', 'support', 'categories']
 
 const isMapping = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isBlank = (value) => value === undefined || value === null || value === ''

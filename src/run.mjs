@@ -4,9 +4,9 @@ import { chromium } from 'playwright'
 import { loadModuleData } from './data.mjs'
 import { validate } from './validate.mjs'
 import { buildFormValues } from './form.mjs'
-import { assertZipMatchesVersion, readModuleVersion, toStoreVersion } from './version.mjs'
+import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
 import {
-  assertRealRunElements, fillForm, login, openProduct, planScreenshots, submit, takeScreenshot, uploadScreenshots, uploadZip,
+  assertRealRunElements, fillForm, login, openProduct, planScreenshots, readFormFields, submit, takeScreenshot, uploadScreenshots, uploadZip,
 } from './browser.mjs'
 import { installReadOnlyGuard } from './checks.mjs'
 
@@ -48,13 +48,15 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       await uploadZip(page, zipPath)
       screenshots = await uploadScreenshots(page, data.screenshots)
     }
+    // Read-only: what the form currently holds as price (never sent by this tool)
+    const currentPrice = (await readFormFields(page)).sale_price
     // Never write the credentials: only the values sent to the form
-    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun, abortedWrites }, null, 2))
+    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun, abortedWrites, currentPrice }, null, 2))
     await takeScreenshot(page, join(outDir, 'dolistore-form.png'), email)
     if (dryRun) {
       return { submitted: false, values }
     }
-    await submit(page, data.product.id, basename(zipPath), toStoreVersion(version))
+    await submit(page, data.product.id, basename(zipPath), values.text)
     return { submitted: true, values }
   } catch (error) {
     if (loggedIn) {

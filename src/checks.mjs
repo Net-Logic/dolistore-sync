@@ -104,3 +104,20 @@ export const LOGIN_SELECTORS = {
   password: '#login_form #passwdlogin',
   submit: '#login_form #SubmitLogin',
 }
+
+export const FORM_FIELDS = ['sale_price', 'validityduration', 'phpmin', 'phpmax', 'version']
+
+// Compares the form fields read just before the click (before) and after re-opening the edit page (after).
+// The price is compared raw (no normalisation) and must be identical. Returns a list of problems.
+export function compareSubmitted({ before, after, sent }) {
+  const problems = []
+  if (after.sale_price !== before.sale_price) {
+    problems.push(`PRICE CHANGED BY THE SUBMISSION (before: ${before.sale_price}, after: ${after.sale_price}): fix it by hand on DoliStore NOW`)
+  }
+  for (const name of ['version', 'phpmin', 'phpmax', 'validityduration']) {
+    if (after[name] !== sent[name]) {
+      problems.push(`${name} on DoliStore is "${after[name]}", expected "${sent[name]}"`)
+    }
+  }
+  return problems
+}

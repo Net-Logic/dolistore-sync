@@ -1,5 +1,5 @@
 import {
-  LOGIN_SELECTORS, SUBMITTED_PREFIX, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
+  FORM_FIELDS, LOGIN_SELECTORS, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -194,9 +194,21 @@ export async function takeScreenshot(page, path, email) {
   }
 }
 
-export async function submit(page, id, zipName, expectedVersion) {
+// Raw current values of the form fields that matter for the read-back guard (null when absent)
+export async function readFormFields(page) {
+  return page.evaluate((names) => Object.fromEntries(names.map((n) => {
+    const el = document.querySelector(`#product-creation-form [name="${n}"]`)
+    return [n, el ? el.value : null]
+  })), FORM_FIELDS)
+}
+
+export async function submit(page, id, zipName, sent) {
   if (await page.locator('#sub').count() === 0) {
     throw new Error('DoliStore form changed: #sub not found')
+  }
+  const before = await readFormFields(page)
+  if (before.sale_price === null) {
+    throw new Error('DoliStore form changed: field "sale_price" not found')
   }
   // From the click on, the submission may have gone through whatever happens next
   try {
@@ -212,9 +224,11 @@ export async function submit(page, id, zipName, expectedVersion) {
       throw refusal
     }
     await openProduct(page, id)
-    const version = await page.locator('#product-creation-form [name="version"]').inputValue()
-    if (version !== expectedVersion) {
-      throw new Error(`version on DoliStore is "${version}", expected "${expectedVersion}"`)
+    const problems = compareSubmitted({ before, after: await readFormFields(page), sent })
+    if (problems.length > 0) {
+      const incident = new Error(problems.join('; '))
+      incident.refused = problems[0].startsWith('PRICE CHANGED')
+      throw incident
     }
     await page.goto(`${BASE}/manage-products.php`)
     const text = await page.evaluate((source) => {

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import {
-  LOGIN_SELECTORS, REFUSED_PREFIX, diffCategories, extractRefusal, formatRefusal, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, REFUSED_PREFIX, compareSubmitted, diffCategories, extractRefusal, formatRefusal, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
 } from '../src/checks.mjs'
 import { parseLangFile } from '../src/data.mjs'
 import { toHtml } from '../src/markdown.mjs'
@@ -177,4 +177,27 @@ test('extractRefusal returns an empty string without an error', () => {
 test('extractRefusal is limited to 2500 characters when there is no cut marker', () => {
   const out = extractRefusal(`There is 1 error\n${'y'.repeat(6000)}`)
   assert.equal(out.length, 2500)
+})
+
+const fields = (o = {}) => ({ sale_price: '365,00', validityduration: '365', phpmin: '7.4', phpmax: '8.5', version: '1.2.3', ...o })
+
+test('compareSubmitted: unchanged price and matching values give no problem', () => {
+  assert.deepEqual(compareSubmitted({ before: fields(), after: fields(), sent: fields() }), [])
+})
+
+test('compareSubmitted: a changed price is flagged loudly with both values', () => {
+  const p = compareSubmitted({ before: fields(), after: fields({ sale_price: '36500,00' }), sent: fields() })
+  assert.equal(p.length, 1)
+  assert.match(p[0], /^PRICE CHANGED BY THE SUBMISSION \(before: 365,00, after: 36500,00\): fix it by hand on DoliStore NOW/)
+})
+
+test('compareSubmitted: price comma or space differences are not normalised', () => {
+  assert.equal(compareSubmitted({ before: fields(), after: fields({ sale_price: '365.00' }), sent: fields() }).length, 1)
+  assert.equal(compareSubmitted({ before: fields(), after: fields({ sale_price: '365, 00' }), sent: fields() }).length, 1)
+})
+
+test('compareSubmitted: version, php and duration mismatches are flagged', () => {
+  const p = compareSubmitted({ before: fields(), after: fields({ version: '1.2.2', phpmax: '8.4' }), sent: fields() })
+  assert.equal(p.length, 2)
+  assert.match(p.join('\n'), /version on DoliStore is "1\.2\.2", expected "1\.2\.3"/)
 })
