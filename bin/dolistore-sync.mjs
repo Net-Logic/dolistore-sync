@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util'
 import { resolve } from 'node:path'
+import { maskSecrets } from '../src/mask.mjs'
 import { run } from '../src/run.mjs'
 
 const { values } = parseArgs({
@@ -32,6 +33,6 @@ try {
   })
   console.log(result.submitted ? 'Product updated on DoliStore.' : 'Dry run done, nothing submitted.')
 } catch (error) {
-  console.error(error.message)
+  console.error(maskSecrets(error.message, [process.env.DOLISTORE_PASSWORD, process.env.DOLISTORE_LOGIN]))
   process.exit(1)
 }

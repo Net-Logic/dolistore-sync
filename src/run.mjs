@@ -1,15 +1,18 @@
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { chromium } from 'playwright'
 import { loadModuleData } from './data.mjs'
 import { validate } from './validate.mjs'
 import { buildFormValues } from './form.mjs'
 import { readModuleVersion } from './version.mjs'
-import { fillForm, login, openProduct, submit, uploadScreenshots, uploadZip } from './browser.mjs'
+import { fillForm, login, openProduct, submit, planScreenshots, uploadScreenshots, uploadZip } from './browser.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
   const version = readModuleVersion(readFileSync(join(moduleDir, descriptor), 'utf8'))
+  if (!existsSync(zipPath)) {
+    throw new Error(`zip not found: ${zipPath}`)
+  }
   const errors = validate(data, { version, zipBytes: statSync(zipPath).size })
   if (errors.length > 0) {
     throw new Error(`Invalid dolistore data:\n- ${errors.join('\n- ')}`)
@@ -27,10 +30,16 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     await login(page, { login: email, password })
     await openProduct(page, data.product.id)
     await fillForm(page, values)
-    await uploadZip(page, zipPath)
-    const screenshots = await uploadScreenshots(page, data.screenshots)
+    // A dry run never sets the zip input nor adds screenshots: it only reports them
+    let screenshots
+    if (dryRun) {
+      screenshots = await planScreenshots(page, data.screenshots)
+    } else {
+      await uploadZip(page, zipPath)
+      screenshots = await uploadScreenshots(page, data.screenshots)
+    }
     // Never write the credentials: only the values sent to the form
-    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath) }, null, 2))
+    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun }, null, 2))
     await page.screenshot({ path: join(outDir, 'dolistore-form.png'), fullPage: true })
     if (dryRun) {
       return { submitted: false, values }

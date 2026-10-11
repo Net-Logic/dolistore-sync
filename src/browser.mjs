@@ -4,13 +4,18 @@ const BASE = 'https://www.dolistore.com'
 export async function login(page, { login: email, password }) {
   await page.goto(`${BASE}/login-register.php`)
   // The sign-in form is the first one with an e-mail and a password field
-  await page.getByLabel(/e-?mail/i).first().fill(email)
-  await page.locator('input[type="password"]').first().fill(password)
+  // Playwright errors can echo the filled value: never rethrow the original error
+  try {
+    await page.getByLabel(/e-?mail/i).first().fill(email)
+    await page.locator('input[type="password"]').first().fill(password)
+  } catch {
+    throw new Error('DoliStore login form not usable (selectors to be confirmed)')
+  }
   await Promise.all([
     page.waitForLoadState('domcontentloaded'),
     page.getByRole('button', { name: /connexion|sign in|se connecter/i }).first().click(),
   ])
-  if (page.url().includes('login-register.php') || await page.getByText(/authentification|invalid|incorrect/i).count()) {
+  if (page.url().includes('login-register.php')) {
     throw new Error('DoliStore login failed: check DOLISTORE_LOGIN / DOLISTORE_PASSWORD (not retrying, to avoid locking the account)')
   }
 }
@@ -63,12 +68,25 @@ export async function uploadZip(page, zipPath) {
   await page.locator('#virtual_product_file').setInputFiles(zipPath)
 }
 
+// Read-only: what uploadScreenshots would do (safe in a dry run)
+export async function planScreenshots(page, files) {
+  const existing = await page.locator('#table-body-edit tr[data-id]').count()
+  if (existing > 0) {
+    return { wouldAdd: 0, reason: 'product already has screenshots' }
+  }
+  if (files.length === 0) {
+    return { wouldAdd: 0, reason: 'no screenshots in the repository' }
+  }
+  return { wouldAdd: files.length, reason: 'product has none yet' }
+}
+
 // Selectors to be confirmed by the first dry run (see plan task 7 steps 5-6)
+// Real submission only (a dry run uses planScreenshots, which changes nothing).
 // Adds screenshots only when the product has none yet; never touches existing images
 export async function uploadScreenshots(page, files) {
-  const existing = await page.locator('#table-body-edit tr[data-id]').count()
-  if (existing > 0 || files.length === 0) {
-    return { added: 0, skipped: existing > 0 ? 'product already has screenshots' : 'no screenshots in the repository' }
+  const plan = await planScreenshots(page, files)
+  if (plan.wouldAdd === 0) {
+    return { added: 0, skipped: plan.reason }
   }
   for (const file of files) {
     await page.locator('#fileInput2').setInputFiles(file)
