@@ -90,7 +90,9 @@ export function validate(data, { version, zipBytes }) {
       for (const side of ['min', 'max']) {
         if (isBlank(php[side])) {
           errors.push(`product.yml: "php.${side}" is missing`)
-        } else if (!/^\d+\.\d+$/.test(String(php[side]))) {
+        } else if (typeof php[side] !== 'string') {
+          errors.push(`php.${side} must be quoted ("8.10")`)
+        } else if (!/^\d+\.\d+$/.test(php[side])) {
           errors.push(`php.${side} must look like 7.4, got "${php[side]}"`)
         }
       }
@@ -99,6 +101,10 @@ export function validate(data, { version, zipBytes }) {
         errors.push(`php min (${php.min}) is greater than max (${php.max})`)
       }
     }
+  }
+
+  if (!isBlank(p.keywords) && !Array.isArray(p.keywords)) {
+    errors.push('product.yml: "keywords" must be a list')
   }
 
   try {

@@ -124,3 +124,17 @@ test('a date-style version is accepted and 1.2.3-beta still fails', () => {
   assert.deepEqual(validate(good(), { version: '2026-09-15', zipBytes: 1000 }), [])
   assert.match(validate(good(), { version: '1.2.3-beta', zipBytes: 1000 }).join('\n'), /1\.2\.3-beta/)
 })
+
+test('keywords must be a list when present', () => {
+  const d = good(); d.product.keywords = 'prune, autoload'
+  assert.match(validate(d, ctx).join('\n'), /keywords/)
+  const ok = good(); delete ok.product.keywords
+  assert.deepEqual(validate(ok, ctx), [])
+})
+
+test('php values must be quoted strings (YAML 8.10 would become 8.1)', () => {
+  const d = good(); d.product.php.max = 8.1
+  assert.match(validate(d, ctx).join('\n'), /php\.max must be quoted \("8\.10"\)/)
+  const e = good(); e.product.php.min = 7
+  assert.match(validate(e, ctx).join('\n'), /php\.min must be quoted/)
+})

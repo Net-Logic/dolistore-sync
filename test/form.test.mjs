@@ -38,3 +38,10 @@ test('languages without a file are not touched', () => {
   assert.equal('name_fr' in v.text, false)
   assert.equal('description_de' in v.text, false)
 })
+
+test('never produces a status key (the status is never changed)', () => {
+  const v = buildFormValues(data, '1.0.0')
+  for (const part of [v, v.text, v.selects]) {
+    assert.equal(Object.keys(part).includes('status'), false)
+  }
+})

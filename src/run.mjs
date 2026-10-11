@@ -4,7 +4,7 @@ import { chromium } from 'playwright'
 import { loadModuleData } from './data.mjs'
 import { validate } from './validate.mjs'
 import { buildFormValues } from './form.mjs'
-import { readModuleVersion } from './version.mjs'
+import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
 import { fillForm, login, openProduct, submit, planScreenshots, uploadScreenshots, uploadZip } from './browser.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
@@ -13,6 +13,7 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
   if (!existsSync(zipPath)) {
     throw new Error(`zip not found: ${zipPath}`)
   }
+  assertZipMatchesVersion(zipPath, version)
   const errors = validate(data, { version, zipBytes: statSync(zipPath).size })
   if (errors.length > 0) {
     throw new Error(`Invalid dolistore data:\n- ${errors.join('\n- ')}`)

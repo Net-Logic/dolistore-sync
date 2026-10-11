@@ -1,1 +1,2 @@
-<?php $this->version = '1.0.0';
+<?php
+	$this->version = '1.0.0';
