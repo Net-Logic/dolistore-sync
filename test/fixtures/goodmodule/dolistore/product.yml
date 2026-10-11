@@ -1,0 +1,8 @@
+id: 646
+dolibarr: { min: V10, max: V24 }
+php: { min: "7.4", max: "8.5" }
+access_days: 365
+price: "0,00"
+support: dolibarr@netlogic.fr
+categories: [ "Modules/Plugins", "Outils systèmes" ]
+keywords: [ prune, autoload ]
