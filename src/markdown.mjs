@@ -27,8 +27,11 @@ const marked = new Marked({
       return `<a href="${escapeHtml(safeUrl(href))}">${label}</a>`
     },
     image(hrefOrToken, titleArg, textArg) {
-      const token = typeof hrefOrToken === 'string' ? { href: hrefOrToken, text: textArg } : hrefOrToken
-      return `<img src="${escapeHtml(safeUrl(token.href))}" alt="${escapeHtml(token.text || '')}">`
+      // marked <= 12 already HTML-escapes the alt text, >= 13 passes it raw
+      const isString = typeof hrefOrToken === 'string'
+      const href = isString ? hrefOrToken : hrefOrToken.href
+      const alt = isString ? textArg || '' : escapeHtml(hrefOrToken.text || '')
+      return `<img src="${escapeHtml(safeUrl(href))}" alt="${alt}">`
     },
     heading(textOrToken, levelArg) {
       let text, depth
