@@ -1,5 +1,5 @@
 import {
-  LOGIN_SELECTORS, SUBMITTED_PREFIX, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, SUBMITTED_PREFIX, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -201,9 +201,12 @@ export async function submit(page, id, zipName, expectedVersion) {
   // From the click on, the submission may have gone through whatever happens next
   try {
     await Promise.all([page.waitForLoadState('domcontentloaded'), page.locator('#sub').click({ timeout: 300000 })])
-    const notice = await page.locator('.alert-danger, .alert-error, .error, .errors').first().innerText({ timeout: 1000 }).catch(() => '')
-    if (notice.trim()) {
-      throw new Error(`error notice on the result page: ${notice.trim().slice(0, 200)}`)
+    const notices = await page.locator('.alert-danger, .alert-error, .error, .errors').allInnerTexts().catch(() => [])
+    const notice = notices.join(' ').trim()
+    if (notice) {
+      const refusal = new Error(formatRefusal(notice))
+      refusal.refused = true
+      throw refusal
     }
     await openProduct(page, id)
     const version = await page.locator('#product-creation-form [name="version"]').inputValue()
@@ -224,6 +227,9 @@ export async function submit(page, id, zipName, expectedVersion) {
       throw new Error(`"${zipName}" not found in the product row of manage-products.php`)
     }
   } catch (error) {
+    if (error.refused) {
+      throw error
+    }
     throw new Error(`${SUBMITTED_PREFIX}: ${error.message}`)
   }
 }

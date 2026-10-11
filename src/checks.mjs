@@ -4,6 +4,17 @@ import { decode } from 'he'
 
 export const SUBMITTED_PREFIX = 'The form WAS submitted — check DoliStore by hand before re-running (do not re-run blindly)'
 
+export const REFUSED_PREFIX = 'DoliStore refused the submission (the product is normally left unchanged, check it on DoliStore before re-running)'
+
+// Message for an error box shown by DoliStore's package validator: the full reasons, whitespace collapsed
+export function formatRefusal(text) {
+  const clean = String(text ?? '').replace(/\s+/g, ' ').trim()
+  if (!clean) {
+    return `${REFUSED_PREFIX}: no detail given`
+  }
+  return `${REFUSED_PREFIX}: ${clean.length > 3000 ? `${clean.slice(0, 3000)}...` : clean}`
+}
+
 // Dry run is the default: only an explicit --submit does a real run (--dry-run wins if both are given)
 export function isDryRun(values) {
   return !values.submit || Boolean(values['dry-run'])

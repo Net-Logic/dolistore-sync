@@ -1,9 +1,10 @@
 import test from 'node:test'
+import { maskSecrets } from '../src/mask.mjs'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import {
-  LOGIN_SELECTORS, diffCategories, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
+  LOGIN_SELECTORS, REFUSED_PREFIX, diffCategories, formatRefusal, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
 } from '../src/checks.mjs'
 import { parseLangFile } from '../src/data.mjs'
 import { toHtml } from '../src/markdown.mjs'
@@ -127,4 +128,21 @@ test('the masks cover the real login fields (name=email, type=password)', () => 
   const list = maskSelectors('me@example.com')
   assert.ok(list.includes('input[type="password"]'))
   assert.ok(list.includes('input[name*="mail" i]:not([name="contact_support"])'))
+})
+
+test('refusal message keeps the full reasons, collapsed and truncated', () => {
+  assert.equal(formatRefusal('There are 1 error\n\n  1. Your   zip file does not respect rules'), `${REFUSED_PREFIX}: There are 1 error 1. Your zip file does not respect rules`)
+  const long = formatRefusal('x'.repeat(5000))
+  assert.equal(long, `${REFUSED_PREFIX}: ${'x'.repeat(3000)}...`)
+})
+
+test('refusal message with no text is generic', () => {
+  assert.equal(formatRefusal('  \n '), `${REFUSED_PREFIX}: no detail given`)
+  assert.equal(formatRefusal(undefined), `${REFUSED_PREFIX}: no detail given`)
+})
+
+test('a secret inside a refusal text is still masked', () => {
+  const masked = maskSecrets(formatRefusal('file me@x.fr is bad, pw1'), ['pw1', 'me@x.fr'])
+  assert.equal(masked.includes('pw1') || masked.includes('me@x.fr'), false)
+  assert.match(masked, /^DoliStore refused the submission/)
 })

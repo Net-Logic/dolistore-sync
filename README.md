@@ -8,3 +8,5 @@ The two secrets `DOLISTORE_LOGIN` and `DOLISTORE_PASSWORD` must be set in GitHub
 On the command line a dry run is also the default: pass `--submit` to send the form (`--dry-run` is accepted as a no-op alias).
 Screenshots masked: password/e-mail/login inputs, the page header and anything showing the login e-mail are masked (best effort; the form fields stay visible), and no error screenshot is taken when the login step fails.
 Pin the action to a tag or a commit SHA before using it on other modules.
+
+A refusal by the DoliStore package validator (error box on the result page) shows its reasons in the job log.
