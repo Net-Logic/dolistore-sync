@@ -6,7 +6,7 @@ import { validate } from './validate.mjs'
 import { buildFormValues } from './form.mjs'
 import { assertZipMatchesVersion, readModuleVersion, toStoreVersion } from './version.mjs'
 import {
-  assertRealRunElements, fillForm, login, openProduct, planScreenshots, screenshotOptions, submit, uploadScreenshots, uploadZip,
+  assertRealRunElements, fillForm, login, openProduct, planScreenshots, submit, takeScreenshot, uploadScreenshots, uploadZip,
 } from './browser.mjs'
 import { installReadOnlyGuard } from './checks.mjs'
 
@@ -50,7 +50,7 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     }
     // Never write the credentials: only the values sent to the form
     writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun, abortedWrites }, null, 2))
-    await page.screenshot(screenshotOptions(page, join(outDir, 'dolistore-form.png')))
+    await takeScreenshot(page, join(outDir, 'dolistore-form.png'), email)
     if (dryRun) {
       return { submitted: false, values }
     }
@@ -58,7 +58,7 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     return { submitted: true, values }
   } catch (error) {
     if (loggedIn) {
-      await page.screenshot(screenshotOptions(page, join(outDir, 'dolistore-error.png'))).catch(() => {})
+      await takeScreenshot(page, join(outDir, 'dolistore-error.png'), email).catch(() => {})
     }
     throw error
   } finally {

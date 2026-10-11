@@ -1,5 +1,5 @@
 import {
-  SUBMITTED_PREFIX, diffCategories, isEditorSynced, productHrefPattern, screenshotMaskSelector,
+  SUBMITTED_PREFIX, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -181,12 +181,18 @@ export async function assertRealRunElements(page, { screenshots }) {
   }
 }
 
-// Masks inputs and the account header/nav (best effort: the selectors are guesses)
-export function screenshotOptions(page, path) {
-  return {
-    path,
-    fullPage: true,
-    mask: [page.locator('input'), page.locator(screenshotMaskSelector)],
+// Masks credential-like inputs, the account header/nav and any text/input holding the login e-mail
+// (best effort). Only the login is passed here, never the password.
+// A failure is rethrown generically: a locator description could echo the e-mail.
+export async function takeScreenshot(page, path, email) {
+  const mask = maskSelectors(email).map((selector) => page.locator(selector))
+  if (email) {
+    mask.push(page.getByText(email, { exact: false }))
+  }
+  try {
+    await page.screenshot({ path, fullPage: true, mask })
+  } catch {
+    throw new Error('screenshot failed')
   }
 }
 

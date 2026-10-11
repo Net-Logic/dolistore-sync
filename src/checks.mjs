@@ -54,4 +54,21 @@ export function isEditorSynced(expectedHtml, gotHtml) {
   return got.length > 0 && got === plainText(expectedHtml)
 }
 
-export const screenshotMaskSelector = 'header, #header, .header, nav'
+// CSS selectors masked in every screenshot: credentials-like inputs, the header/nav, and any input
+// carrying the login e-mail. contact_support is a public e-mail shown on the product: never masked.
+// (The text containing the e-mail is masked in browser.mjs with getByText.)
+export function maskSelectors(email) {
+  const selectors = [
+    'input[type="password"]',
+    'input[type="email"]:not([name="contact_support"])',
+    'input[autocomplete="username"]',
+    'input[name*="mail" i]:not([name="contact_support"])',
+    'input[name*="login" i]',
+    'header, #header, .header, nav',
+  ]
+  if (email) {
+    const escaped = String(email).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    selectors.push(`input[value="${escaped}"]`)
+  }
+  return selectors
+}

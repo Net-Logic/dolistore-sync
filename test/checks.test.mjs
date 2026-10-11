@@ -2,7 +2,7 @@ import test from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import {
-  diffCategories, isDryRun, isEditorSynced, makeWriteGuard, productHrefPattern,
+  diffCategories, isDryRun, isEditorSynced, makeWriteGuard, maskSelectors, productHrefPattern,
 } from '../src/checks.mjs'
 import { parseLangFile } from '../src/data.mjs'
 import { toHtml } from '../src/markdown.mjs'
@@ -86,4 +86,30 @@ test('real pilot fr.md survives CKEditor-style numeric entity encoding', { skip:
   const encoded = html.replace(/[^\x00-\x7f]/gu, (c) => `&#${c.codePointAt(0)};`)
   assert.notEqual(encoded, html, 'fixture should contain non-ASCII text')
   assert.equal(isEditorSynced(html, encoded), true)
+})
+
+test('mask selectors cover credential inputs but never a bare input', () => {
+  const list = maskSelectors('me@example.com')
+  assert.equal(list.includes('input'), false)
+  assert.ok(list.includes('input[type="password"]'))
+  assert.ok(list.some((s) => s.startsWith('input[type="email"]')))
+  assert.ok(list.some((s) => s.startsWith('input[name*="login" i]')))
+  assert.ok(list.some((s) => s.startsWith('input[name*="mail" i]')))
+  assert.ok(list.includes('input[autocomplete="username"]'))
+})
+
+test('mask selectors exclude contact_support from the e-mail-like ones', () => {
+  const list = maskSelectors('me@example.com')
+  assert.ok(list.filter((s) => /mail|email/.test(s)).every((s) => s.includes(':not([name="contact_support"])')))
+})
+
+test('mask value selector escapes quotes and backslashes in the e-mail', () => {
+  const list = maskSelectors('a"b\\c@x.fr')
+  assert.ok(list.includes('input[value="a\\"b\\\\c@x.fr"]'))
+})
+
+test('mask value selector is omitted without an e-mail', () => {
+  for (const email of [undefined, '']) {
+    assert.equal(maskSelectors(email).some((s) => s.startsWith('input[value=')), false)
+  }
 })
