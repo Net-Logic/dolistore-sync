@@ -1,8 +1,11 @@
 import test from 'node:test'
+import { existsSync, readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import {
   diffCategories, isDryRun, isEditorSynced, makeWriteGuard, productHrefPattern,
 } from '../src/checks.mjs'
+import { parseLangFile } from '../src/data.mjs'
+import { toHtml } from '../src/markdown.mjs'
 
 const fakeRoute = (method, url) => {
   const calls = []
@@ -57,4 +60,30 @@ test('editor sync compares text, ignores markup, refuses empty', () => {
   assert.equal(isEditorSynced('<p>Hello <strong>a&amp;b</strong></p>', '<p>Hello&nbsp;<b>a&amp;b</b></p>\n'), true)
   assert.equal(isEditorSynced('<p>Hello</p>', ''), false)
   assert.equal(isEditorSynced('<p>Hello</p>', '<p>Other</p>'), false)
+})
+
+test('editor sync decodes the entities CKEditor 4 emits', () => {
+  assert.equal(isEditorSynced('<p>café</p>', '<p>caf&eacute;</p>'), true)
+  assert.equal(isEditorSynced('<p>l’été</p>', '<p>l&rsquo;&eacute;t&eacute;</p>'), true)
+  assert.equal(isEditorSynced('<p>a b</p>', '<p>a&#160;b</p>'), true)
+  assert.equal(isEditorSynced('<p>a&nbsp;b</p>', '<p>a b</p>'), true)
+})
+
+test('editor sync still detects a real mismatch or an empty editor', () => {
+  assert.equal(isEditorSynced('<p>abc</p>', '<p>abd</p>'), false)
+  assert.equal(isEditorSynced('<p>abc</p>', ''), false)
+  assert.equal(isEditorSynced('<p>abc</p>', '<p></p>'), false)
+})
+
+test('editor sync never interprets escaped markup as a tag', () => {
+  assert.equal(isEditorSynced('<p>&lt;script&gt;</p>', '<p>&lt;script&gt;</p>'), true)
+  assert.equal(isEditorSynced('<p>&lt;b&gt;x</p>', '<p>x</p>'), false)
+})
+
+const pilotFr = '/home/fred/dolibarr/dolibarr_dolidev/prune-dolistore-pilot/dolistore/fr.md'
+test('real pilot fr.md survives CKEditor-style numeric entity encoding', { skip: !existsSync(pilotFr) }, () => {
+  const html = toHtml(parseLangFile(readFileSync(pilotFr, 'utf8')).long)
+  const encoded = html.replace(/[^\x00-\x7f]/gu, (c) => `&#${c.codePointAt(0)};`)
+  assert.notEqual(encoded, html, 'fixture should contain non-ASCII text')
+  assert.equal(isEditorSynced(html, encoded), true)
 })

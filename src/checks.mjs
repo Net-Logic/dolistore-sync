@@ -1,3 +1,5 @@
+import { decode } from 'he'
+
 // Pure helpers, unit-tested: no browser needed
 
 export const SUBMITTED_PREFIX = 'The form WAS submitted — check DoliStore by hand before re-running (do not re-run blindly)'
@@ -41,12 +43,9 @@ export function diffCategories(actual, wanted) {
   }
 }
 
-const ENTITIES = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" }
+// Tags first, then entities (so a literal &lt;b&gt; stays text), then whitespace (U+00A0 included)
 export function plainText(html) {
-  return String(html)
-    .replace(/<[^>]*>/g, '')
-    .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m])
-    .replace(/\s+/g, '')
+  return decode(String(html).replace(/<[^>]*>/g, '')).replace(/[\s\u00a0]+/g, '')
 }
 
 // CKEditor reformats the HTML, so compare the text only

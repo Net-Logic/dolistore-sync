@@ -3,10 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "bin": { "dolistore-sync": "bin/dolistore-sync.mjs" },
-  "scripts": { "test": "node --test test/*.test.mjs" },
-  "engines": { "node": ">=20" },
+  "bin": {
+    "dolistore-sync": "bin/dolistore-sync.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
+    "he": "^2.0.0",
     "marked": "^12.0.0",
     "playwright": "^1.48.0",
     "yaml": "^2.5.0"
