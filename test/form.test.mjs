@@ -45,3 +45,10 @@ test('never produces a status key (the status is never changed)', () => {
     assert.equal(Object.keys(part).includes('status'), false)
   }
 })
+
+import { buildCreateValues } from '../src/form.mjs'
+
+test('create values: price with a dot, explicit booleans, core inclusion off by default', () => {
+  const v = buildCreateValues({ product: { create: { price: 180, status: 'submitted', accept_terms: true, accept_wiki_notice: true } } })
+  assert.deepEqual(v, { price: '180.00', status: 'submitted', acceptTerms: true, wikiNotice: true, coreInclude: false })
+})

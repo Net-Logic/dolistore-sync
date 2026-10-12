@@ -33,5 +33,6 @@ export function loadModuleData(moduleDir) {
   const screenshots = existsSync(shotsDir)
     ? readdirSync(shotsDir).filter((f) => /\.(png|jpe?g)$/i.test(f)).sort().map((f) => join(shotsDir, f))
     : []
-  return { product, langs, screenshots }
+  const cover = ['png', 'jpg', 'jpeg'].map((ext) => join(dir, `cover.${ext}`)).find((f) => existsSync(f)) ?? null
+  return { product, langs, screenshots, cover }
 }

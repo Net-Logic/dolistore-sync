@@ -166,3 +166,37 @@ test('screenshots option: sync without images is rejected', () => {
   d.product.screenshots = 'sync'
   assert.ok(validate(d, ctx).includes('product.yml: screenshots: sync needs at least one image in dolistore/screenshots'))
 })
+
+const created = () => {
+  const d = good()
+  delete d.product.id
+  d.product.create = { price: 180, status: 'submitted', accept_terms: true }
+  d.cover = '/x/cover.png'
+  return d
+}
+
+test('create: a complete new product gives no error', () => {
+  assert.deepEqual(validate(created(), { ...ctx, create: true }), [])
+})
+
+test('create: refuses a product that already has an id', () => {
+  const d = created()
+  d.product.id = 646
+  assert.match(validate(d, { ...ctx, create: true }).join('\n'), /already exists/)
+})
+
+test('create: needs price, status, explicit terms and a cover', () => {
+  const d = created()
+  d.product.create = { price: '180', status: 'active' }
+  delete d.cover
+  const out = validate(d, { ...ctx, create: true }).join('\n')
+  assert.match(out, /create\.price/)
+  assert.match(out, /create\.status/)
+  assert.match(out, /accept_terms/)
+  assert.match(out, /cover/)
+})
+
+test('update without id is still refused', () => {
+  const d = created()
+  assert.match(validate(d, ctx).join('\n'), /"id" is missing/)
+})

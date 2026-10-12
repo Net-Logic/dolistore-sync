@@ -3,10 +3,10 @@ import { basename, join } from 'node:path'
 import { chromium } from 'playwright'
 import { loadModuleData } from './data.mjs'
 import { validate } from './validate.mjs'
-import { buildFormValues } from './form.mjs'
+import { buildCreateValues, buildFormValues } from './form.mjs'
 import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
 import {
-  assertRealRunElements, fillForm, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
+  assertCreateElements, assertRealRunElements, fillCreateExtras, fillForm, openNewProduct, submitCreate, uploadCover, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
 } from './browser.mjs'
 import { installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
 import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
@@ -71,6 +71,59 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     }
     await submit(page, data.product.id, basename(zipPath), values.text)
     return { submitted: true, values }
+  } catch (error) {
+    if (loggedIn) {
+      await takeScreenshot(page, join(outDir, 'dolistore-error.png'), email).catch(() => {})
+    }
+    throw error
+  } finally {
+    await browser.close()
+  }
+}
+
+// Creates a NEW product (no id yet). Dry run by default: fills the form and stops. Never touches an existing product.
+export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
+  const data = loadModuleData(moduleDir)
+  const version = readModuleVersion(readFileSync(join(moduleDir, descriptor), 'utf8'))
+  if (!existsSync(zipPath)) {
+    throw new Error(`zip not found: ${zipPath}`)
+  }
+  assertZipMatchesVersion(zipPath, version)
+  const errors = validate(data, { version, zipBytes: statSync(zipPath).size, create: true })
+  if (errors.length > 0) {
+    throw new Error(`Invalid dolistore data:\n- ${errors.join('\n- ')}`)
+  }
+  if (!email || !password) {
+    throw new Error('DOLISTORE_LOGIN and DOLISTORE_PASSWORD are required')
+  }
+  const values = buildFormValues(data, version)
+  const create = buildCreateValues(data)
+  mkdirSync(outDir, { recursive: true })
+
+  const browser = await chromium.launch()
+  const context = await browser.newContext()
+  const page = await context.newPage()
+  let loggedIn = false
+  try {
+    await login(page, { login: email, password })
+    loggedIn = true
+    const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
+    await openNewProduct(page)
+    await fillForm(page, values, { creating: true })
+    await fillCreateExtras(page, create)
+    await assertCreateElements(page)
+    if (!dryRun) {
+      await uploadZip(page, zipPath)
+      await uploadCover(page, data.cover)
+    }
+    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, create, zip: basename(zipPath), cover: basename(data.cover), dryRun, abortedWrites }, null, 2))
+    await takeScreenshot(page, join(outDir, 'dolistore-form.png'), email)
+    if (dryRun) {
+      return { submitted: false, values }
+    }
+    const id = await submitCreate(page, { name: values.text.name_en, zipName: basename(zipPath) })
+    writeFileSync(join(outDir, 'dolistore-created-id.txt'), `${id}\n`)
+    return { submitted: true, values, id }
   } catch (error) {
     if (loggedIn) {
       await takeScreenshot(page, join(outDir, 'dolistore-error.png'), email).catch(() => {})

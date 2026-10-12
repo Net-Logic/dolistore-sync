@@ -31,3 +31,15 @@ export function buildFormValues(data, version) {
     categories: p.categories.map((label) => CATEGORIES[label]),
   }
 }
+
+// Creation only: the price and the choices that the update never sends (the price is a number of euros, dot decimal)
+export function buildCreateValues(data) {
+  const c = data.product.create
+  return {
+    price: Number(c.price).toFixed(2),
+    status: c.status,
+    acceptTerms: c.accept_terms === true,
+    wikiNotice: c.accept_wiki_notice === true,
+    coreInclude: c.core_include === true,
+  }
+}

@@ -30,6 +30,14 @@ export async function openProduct(page, id) {
   await page.locator('#product-creation-form').waitFor({ state: 'attached' })
 }
 
+export async function openNewProduct(page) {
+  await page.goto(`${BASE}/edit-module-product.php`)
+  await page.locator('#product-creation-form').waitFor({ state: 'attached' })
+  if (await page.locator('#product-creation-form input[name="action"][value="new-module"]').count() === 0) {
+    throw new Error('DoliStore form changed: this is not the new product form (action=new-module not found)')
+  }
+}
+
 async function setText(page, name, value) {
   const field = page.locator(`#product-creation-form [name="${name}"]`)
   if (await field.count() === 0) {
@@ -71,7 +79,7 @@ async function setText(page, name, value) {
   }
 }
 
-export async function fillForm(page, values) {
+export async function fillForm(page, values, { creating = false } = {}) {
   for (const [name, value] of Object.entries(values.text)) {
     await setText(page, name, value)
   }
@@ -105,7 +113,7 @@ export async function fillForm(page, values) {
     throw new Error(`Categories not as wanted: missing [${diff.missing.join(', ')}], unexpected [${diff.extra.join(', ')}]`)
   }
   const terms = page.locator('#dolibarr_terms')
-  if (!(await terms.isChecked())) {
+  if (!creating && !(await terms.isChecked())) {
     throw new Error('The seller terms checkbox is not accepted on this product: accept it once by hand')
   }
 }
@@ -278,6 +286,80 @@ export async function submit(page, id, zipName, sent) {
     if (!text.includes(zipName)) {
       throw new Error(`"${zipName}" not found in the product row of manage-products.php`)
     }
+  } catch (error) {
+    if (error.refused) {
+      throw error
+    }
+    throw new Error(`${SUBMITTED_PREFIX}: ${error.message}`)
+  }
+}
+
+async function setChecked(page, selector, wanted) {
+  const box = page.locator(selector)
+  if (await box.count() === 0) {
+    throw new Error(`DoliStore form changed: ${selector} not found`)
+  }
+  if ((await box.isChecked()) !== wanted) {
+    await box.click()
+  }
+  if ((await box.isChecked()) !== wanted) {
+    throw new Error(`${selector} could not be set to ${wanted}`)
+  }
+}
+
+// Creation only: price, status and the three legal checkboxes, each one exactly as written in product.yml
+export async function fillCreateExtras(page, create) {
+  await setText(page, 'sale_price', create.price)
+  await page.locator(`#status-${create.status}`).check()
+  await setChecked(page, '#dolibarr_terms', create.acceptTerms)
+  await setChecked(page, '#module_wiki', create.wikiNotice)
+  await setChecked(page, '#dolibarr_core_include', create.coreInclude)
+  const back = await readFormFields(page)
+  if (back.sale_price !== create.price) {
+    throw new Error(`sale_price is "${back.sale_price}" in the form, expected "${create.price}"`)
+  }
+}
+
+export async function uploadCover(page, coverPath) {
+  await page.locator('#image_cover').setInputFiles(coverPath)
+}
+
+// Read-only check of the elements only a real creation uses
+export async function assertCreateElements(page) {
+  for (const selector of ['#virtual_product_file', '#image_cover', '#sub', '#dolibarr_terms', '#module_wiki', '#dolibarr_core_include', '#status-submitted', '#status-disabled']) {
+    if (await page.locator(selector).count() === 0) {
+      throw new Error(`DoliStore form changed: ${selector} not found`)
+    }
+  }
+}
+
+// REAL RUN ONLY. From the click on, the product may exist whatever happens next: never re-run blindly.
+// Returns the id of the new product, found in manage-products.php by its English name.
+export async function submitCreate(page, { name, zipName }) {
+  try {
+    await Promise.all([page.waitForLoadState('domcontentloaded'), page.locator('#sub').click({ timeout: 300000 })])
+    const notices = await page.locator('.alert-danger, .alert-error, .error, .errors').allInnerTexts().catch(() => [])
+    const selectorText = notices.join(' ').trim()
+    const bodyText = await page.locator('body').innerText({ timeout: 5000 }).catch(() => '')
+    const extracted = extractRefusal(bodyText)
+    const notice = extracted.length > selectorText.length ? extracted : selectorText
+    if (notice) {
+      const refusal = new Error(formatRefusal(notice))
+      refusal.refused = true
+      throw refusal
+    }
+    await page.goto(`${BASE}/manage-products.php`)
+    const found = await page.evaluate((wanted) => [...document.querySelectorAll('a[href*="edit-module-product.php?id="]')]
+      .map((a) => ({ id: (a.getAttribute('href').match(/id=(\d+)/) || [])[1], row: (a.closest('tr') || {}).innerText || '' }))
+      .filter((x) => x.id && x.row.includes(wanted)), name)
+    const ids = [...new Set(found.map((x) => x.id))]
+    if (ids.length !== 1) {
+      throw new Error(`cannot tell the id of the new product (${ids.length} rows match "${name}" in manage-products.php)`)
+    }
+    if (!found[0].row.includes(zipName)) {
+      throw new Error(`"${zipName}" not found in the product row ${ids[0]} of manage-products.php`)
+    }
+    return ids[0]
   } catch (error) {
     if (error.refused) {
       throw error
