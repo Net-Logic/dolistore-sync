@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import { hashBuffer } from './screenshots.mjs'
 import {
-  FORM_FIELDS, LOGIN_SELECTORS, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern, screenshotsMismatch,
+  FORM_FIELDS, LOGIN_SELECTORS, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern, screenshotsMismatch, isImageBody,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -131,13 +131,17 @@ export async function readScreenshots(page) {
     if (!row.src) {
       throw new Error(`screenshots: cannot read the current image ${row.id} (no image preview)`)
     }
-    const response = await page.request.get(new URL(row.src, page.url()).toString())
+    const response = await page.request.get(new URL(row.src, page.url()).toString(), { maxRedirects: 0 })
     if (response.status() !== 200) {
       throw new Error(`screenshots: cannot read the current image ${row.id} (HTTP ${response.status()})`)
     }
     const body = await response.body()
+    const contentType = response.headers()['content-type'] ?? ''
     if (body.length === 0) {
       throw new Error(`screenshots: cannot read the current image ${row.id} (HTTP ${response.status()}, empty body)`)
+    }
+    if (!isImageBody(contentType, body)) {
+      throw new Error(`screenshots: cannot read the current image ${row.id} (not an image, content-type ${contentType || 'none'})`)
     }
     current.push({ id: row.id, hash: hashBuffer(body) })
   }
@@ -147,27 +151,45 @@ export async function readScreenshots(page) {
 // REAL RUN ONLY (the caller gates it with shouldApplyScreenshots): deletes and uploads are immediate AJAX calls,
 // and every upload ends with location.reload(), which erases the form: re-open the product page afterwards.
 export async function applyScreenshotPlan(page, plan, { desiredHashes, mode }) {
+  // Pre-flight, before any write: nothing is deleted when an element is missing
+  if (plan.add.length > 0 && await page.locator('#fileInput2').count() === 0) {
+    throw new Error('DoliStore form changed: #fileInput2 not found')
+  }
+  for (const id of plan.del) {
+    if (await page.locator(`button.deleteBtn[data-id="${id}"]`).count() === 0) {
+      throw new Error(`DoliStore form changed: delete button of ${id} not found`)
+    }
+  }
   let deleted = 0
   let added = 0
-  for (const id of plan.del) {
-    await page.locator(`button.deleteBtn[data-id="${id}"]`).click()
-    try {
-      await page.locator(`#table-body-edit tr[data-id="${id}"]`).waitFor({ state: 'detached', timeout: 30000 })
-    } catch {
-      throw new Error(`screenshots: delete of ${id} not confirmed`)
+  try {
+    for (const id of plan.del) {
+      await page.locator(`button.deleteBtn[data-id="${id}"]`).click()
+      try {
+        await page.locator(`#table-body-edit tr[data-id="${id}"]`).waitFor({ state: 'detached', timeout: 30000 })
+      } catch {
+        throw new Error(`screenshots: delete of ${id} not confirmed`)
+      }
+      deleted++
     }
-    deleted++
-  }
-  for (const file of plan.add) {
-    const before = await rowsLocator(page).count()
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
-      page.locator('#fileInput2').setInputFiles(file),
-    ])
-    if (await rowsLocator(page).count() !== before + 1) {
-      throw new Error(`screenshots: upload of ${basename(file)} not accepted`)
+    for (const file of plan.add) {
+      const before = await rowsLocator(page).count()
+      try {
+        await Promise.all([
+          page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
+          page.locator('#fileInput2').setInputFiles(file),
+        ])
+      } catch {
+        throw new Error(`screenshots: upload of ${basename(file)} not accepted`)
+      }
+      if (await rowsLocator(page).count() !== before + 1) {
+        throw new Error(`screenshots: upload of ${basename(file)} not accepted`)
+      }
+      added++
     }
-    added++
+  } catch (error) {
+    error.message = `${error.message} (deleted ${deleted}/${plan.del.length}, added ${added}/${plan.add.length})`
+    throw error
   }
   const current = await readScreenshots(page)
   if (mode === 'sync') {

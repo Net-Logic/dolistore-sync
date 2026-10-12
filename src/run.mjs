@@ -9,7 +9,7 @@ import {
   assertRealRunElements, fillForm, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
 } from './browser.mjs'
 import { installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
-import { hashFile, planScreenshots } from './screenshots.mjs'
+import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
@@ -36,21 +36,24 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
   try {
     await login(page, { login: email, password })
     loggedIn = true
+    // Dry run is strictly read-only from the first page load: every non-GET/HEAD request is aborted and
+    // recorded (installed once; the real run installs no guard). Image downloads use page.request, not routed.
+    const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
     await openProduct(page, data.product.id)
     // Screenshots phase, BEFORE the form: adding/deleting is an immediate AJAX call and the upload reloads the page
-    const mode = data.product.screenshots ?? 'if-empty'
+    const mode = screenshotMode(data.product)
     const current = await readScreenshots(page)
     const desired = data.screenshots.map((file) => ({ file, hash: hashFile(file) }))
     const plan = planScreenshots({ mode, current, desired })
     const screenshots = { mode, current: current.map((c) => c.id), plan: { del: plan.del, add: plan.add.map((f) => basename(f)), keep: plan.keep, reason: plan.reason } }
     if (shouldApplyScreenshots({ dryRun, plan })) {
+      // Plan on disk before any write, so a partial failure leaves a trace
+      screenshots.applied = 'pending'
+      writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun }, null, 2))
       screenshots.applied = await applyScreenshotPlan(page, plan, { desiredHashes: desired.map((d) => d.hash), mode })
-      // The reload erased nothing yet, but start the form from a fresh page
+      // Uploads reload the page: re-open it so the form (not filled yet) starts from a fresh page
       await openProduct(page, data.product.id)
     }
-    // Dry run is strictly read-only: every non-GET/HEAD request is aborted and recorded
-    // (installed after the read-only screenshots phase)
-    const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
     await fillForm(page, values)
     // A dry run never sets the zip input: it only reports
     if (dryRun) {

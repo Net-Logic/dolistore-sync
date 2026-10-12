@@ -137,3 +137,17 @@ export function screenshotsMismatch(current, desiredHashes) {
 export function shouldApplyScreenshots({ dryRun, plan }) {
   return !dryRun && plan.del.length + plan.add.length > 0
 }
+
+// True only for a real png/jpeg/gif/webp: right content-type AND matching magic bytes
+// (a login redirect or an HTML error page served with HTTP 200 must never be hashed as an image)
+export function isImageBody(contentType, buf) {
+  if (!String(contentType ?? '').trim().toLowerCase().startsWith('image/') || !buf || buf.length < 12) {
+    return false
+  }
+  const at = (offset, bytes) => bytes.every((b, i) => buf[offset + i] === b)
+  const ascii = (offset, text) => at(offset, [...text].map((ch) => ch.charCodeAt(0)))
+  return at(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    || at(0, [0xff, 0xd8, 0xff])
+    || ascii(0, 'GIF87a') || ascii(0, 'GIF89a')
+    || (ascii(0, 'RIFF') && ascii(8, 'WEBP'))
+}

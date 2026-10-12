@@ -92,3 +92,12 @@ test('hashFile matches hashBuffer of the content', () => {
   writeFileSync(file, content)
   assert.equal(hashFile(file), hashBuffer(content))
 })
+
+import { screenshotMode } from '../src/screenshots.mjs'
+
+test('screenshotMode: absent, null and empty default to if-empty', () => {
+  assert.equal(screenshotMode({}), 'if-empty')
+  assert.equal(screenshotMode({ screenshots: null }), 'if-empty')
+  assert.equal(screenshotMode({ screenshots: '' }), 'if-empty')
+  assert.equal(screenshotMode({ screenshots: 'sync' }), 'sync')
+})

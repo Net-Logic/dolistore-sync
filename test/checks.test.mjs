@@ -226,3 +226,22 @@ test('shouldApplyScreenshots: only a real run with something to do', () => {
   assert.equal(shouldApplyScreenshots({ dryRun: false, plan: some }), true)
   assert.equal(shouldApplyScreenshots({ dryRun: false, plan: none }), false)
 })
+
+import { isImageBody } from '../src/checks.mjs'
+
+const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)])
+const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(16)])
+const html = Buffer.from('<!DOCTYPE html><html><body>Login</body></html>')
+
+test('isImageBody: png and jpeg accepted', () => {
+  assert.equal(isImageBody('image/png', png), true)
+  assert.equal(isImageBody('image/jpeg; charset=x', jpeg), true)
+})
+
+test('isImageBody: html with 200, wrong body, wrong type and empty rejected', () => {
+  assert.equal(isImageBody('text/html', html), false)
+  assert.equal(isImageBody('image/png', html), false)
+  assert.equal(isImageBody('text/html', png), false)
+  assert.equal(isImageBody('image/png', Buffer.alloc(0)), false)
+  assert.equal(isImageBody(undefined, png), false)
+})

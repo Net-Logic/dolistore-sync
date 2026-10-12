@@ -38,3 +38,9 @@ export function planScreenshots({ mode, current, desired }) {
   }
   throw new Error(`unknown screenshots mode "${mode}"`)
 }
+
+// Absent, null or '' means the default (same blank test as validate)
+export function screenshotMode(product) {
+  const mode = product?.screenshots
+  return mode === undefined || mode === null || mode === '' ? 'if-empty' : mode
+}
