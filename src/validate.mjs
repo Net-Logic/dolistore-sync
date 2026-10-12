@@ -1,6 +1,7 @@
 import {
   CATEGORIES, DOLIBARR_VERSIONS, MAX_CATEGORIES, MAX_SCREENSHOTS, MAX_ZIP_BYTES, dolibarrNumber,
 } from './constants.mjs'
+import { COVER_MODES } from './cover.mjs'
 import { SCREENSHOT_MODES } from './screenshots.mjs'
 import { toStoreVersion } from './version.mjs'
 
@@ -123,6 +124,14 @@ export function validate(data, { version, zipBytes, create = false }) {
       errors.push(`product.yml: "screenshots" must be one of ${SCREENSHOT_MODES.join(', ')}, got "${p.screenshots}"`)
     } else if (p.screenshots === 'sync' && (data.screenshots || []).length === 0) {
       errors.push('product.yml: screenshots: sync needs at least one image in dolistore/screenshots')
+    }
+  }
+
+  if (!isBlank(p.cover)) {
+    if (!COVER_MODES.includes(p.cover)) {
+      errors.push(`product.yml: "cover" must be one of ${COVER_MODES.join(', ')}, got "${p.cover}"`)
+    } else if (p.cover === 'sync' && !data.cover) {
+      errors.push('product.yml: cover: sync needs dolistore/cover.png (or .jpg)')
     }
   }
 

@@ -6,10 +6,11 @@ import { validate } from './validate.mjs'
 import { buildCreateValues, buildFormValues } from './form.mjs'
 import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
 import {
-  assertCreateElements, assertRealRunElements, fillCreateExtras, fillForm, openNewProduct, submitCreate, uploadCover, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
+  assertCreateElements, assertRealRunElements, readCover, fillCreateExtras, fillForm, openNewProduct, submitCreate, uploadCover, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
 } from './browser.mjs'
-import { installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
+import { SUBMITTED_PREFIX, installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
 import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
+import { coverMode, planCover } from './cover.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
@@ -55,11 +56,17 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       await openProduct(page, data.product.id)
     }
     await fillForm(page, values)
+    // Cover: part of the form (sent with the zip), compared by content so that a second run changes nothing
+    const coverPlan = planCover({ mode: coverMode(data.product), currentHash: coverMode(data.product) === 'sync' ? await readCover(page) : null, desiredHash: data.cover ? hashFile(data.cover) : null })
+    screenshots.cover = { mode: coverMode(data.product), upload: coverPlan.upload, reason: coverPlan.reason }
     // A dry run never sets the zip input: it only reports
     if (dryRun) {
-      await assertRealRunElements(page, { screenshots: plan.add.length > 0 })
+      await assertRealRunElements(page, { screenshots: plan.add.length > 0, cover: coverPlan.upload })
     } else {
       await uploadZip(page, zipPath)
+      if (coverPlan.upload) {
+        await uploadCover(page, data.cover)
+      }
     }
     // Read-only: what the form currently holds as price (never sent by this tool)
     const currentPrice = (await readFormFields(page)).sale_price
@@ -70,6 +77,12 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       return { submitted: false, values }
     }
     await submit(page, data.product.id, basename(zipPath), values.text)
+    if (coverPlan.upload) {
+      await openProduct(page, data.product.id)
+      if (await readCover(page) !== hashFile(data.cover)) {
+        throw new Error(`${SUBMITTED_PREFIX}: the cover on DoliStore is not the one of the repository after the submission`)
+      }
+    }
     return { submitted: true, values }
   } catch (error) {
     if (loggedIn) {
