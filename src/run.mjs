@@ -6,7 +6,7 @@ import { validate } from './validate.mjs'
 import { buildCreateValues, buildFormValues } from './form.mjs'
 import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
 import {
-  assertCreateElements, assertRealRunElements, readCover, fillCreateExtras, fillForm, openNewProduct, submitCreate, uploadCover, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
+  assertCreateElements, assertRealRunElements, keepPendingStatus, readCover, readProductState, fillCreateExtras, fillForm, openNewProduct, submitCreate, uploadCover, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
 } from './browser.mjs'
 import { SUBMITTED_PREFIX, installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
 import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
@@ -40,6 +40,8 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     // Dry run is strictly read-only from the first page load: every non-GET/HEAD request is aborted and
     // recorded (installed once; the real run installs no guard). Image downloads use page.request, not routed.
     const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
+    // State before anything else (GET only): a product waiting for approval must stay so
+    const stateBefore = await readProductState(page, data.product.id)
     await openProduct(page, data.product.id)
     // Screenshots phase, BEFORE the form: adding/deleting is an immediate AJAX call and the upload reloads the page
     const mode = screenshotMode(data.product)
@@ -56,8 +58,12 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       await openProduct(page, data.product.id)
     }
     await fillForm(page, values)
+    if (stateBefore === 'pending') {
+      await keepPendingStatus(page)
+    }
     // Cover: part of the form (sent with the zip), compared by content so that a second run changes nothing
     const coverPlan = planCover({ mode: coverMode(data.product), currentHash: coverMode(data.product) === 'sync' ? await readCover(page) : null, desiredHash: data.cover ? hashFile(data.cover) : null })
+    screenshots.state = stateBefore
     screenshots.cover = { mode: coverMode(data.product), upload: coverPlan.upload, reason: coverPlan.reason }
     // A dry run never sets the zip input: it only reports
     if (dryRun) {
@@ -77,6 +83,10 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       return { submitted: false, values }
     }
     await submit(page, data.product.id, basename(zipPath), values.text)
+    const stateAfter = await readProductState(page, data.product.id)
+    if (stateAfter !== stateBefore) {
+      throw new Error(`${SUBMITTED_PREFIX}: the state of the product changed from "${stateBefore}" to "${stateAfter}": fix it by hand on DoliStore`)
+    }
     if (coverPlan.upload) {
       await openProduct(page, data.product.id)
       if (await readCover(page) !== hashFile(data.cover)) {

@@ -245,3 +245,13 @@ test('isImageBody: html with 200, wrong body, wrong type and empty rejected', ()
   assert.equal(isImageBody('image/png', Buffer.alloc(0)), false)
   assert.equal(isImageBody(undefined, png), false)
 })
+
+import { parseProductState } from '../src/checks.mjs'
+
+test('product state from the manage-products row', () => {
+  assert.equal(parseProductState('Prix actuel: 180,00 € État: A approuver Fichier: module_x-0.1.0.zip'), 'pending')
+  assert.equal(parseProductState('Réf.: c9883 État: Actif Fichier: module_x.zip'), 'active')
+  assert.equal(parseProductState('État: Désactivé - Fichier: module_x.zip'), 'disabled')
+  assert.equal(parseProductState('État: Désactivé - The module has been deactivated by the developer Fichier: m.zip'), 'disabled')
+  assert.equal(parseProductState('no state here'), 'unknown')
+})
