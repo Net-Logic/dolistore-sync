@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util'
 import { resolve } from 'node:path'
 import { maskSecrets } from '../src/mask.mjs'
 import { isDryRun } from '../src/checks.mjs'
-import { run } from '../src/run.mjs'
+import { run, runCreate } from '../src/run.mjs'
 
 const { values } = parseArgs({
   options: {
@@ -14,6 +14,8 @@ const { values } = parseArgs({
     // Dry run is the default (fail closed): only --submit sends the form; --dry-run is a no-op alias
     submit: { type: 'boolean', default: false },
     'dry-run': { type: 'boolean', default: false },
+    // Creates a NEW product (product.yml without id, with a create block); refuses an existing one
+    create: { type: 'boolean', default: false },
   },
 })
 
@@ -25,7 +27,7 @@ for (const key of ['module', 'descriptor', 'zip']) {
 }
 
 try {
-  const result = await run({
+  const result = await (values.create ? runCreate : run)({
     moduleDir: resolve(values.module),
     descriptor: values.descriptor,
     zipPath: resolve(values.zip),
@@ -34,7 +36,7 @@ try {
     login: process.env.DOLISTORE_LOGIN,
     password: process.env.DOLISTORE_PASSWORD,
   })
-  console.log(result.submitted ? 'Product updated on DoliStore.' : 'Dry run done, nothing submitted.')
+  console.log(!result.submitted ? 'Dry run done, nothing submitted.' : values.create ? `Product created on DoliStore with id ${result.id}: write it in dolistore/product.yml.` : 'Product updated on DoliStore.')
 } catch (error) {
   console.error(maskSecrets(error.message, [process.env.DOLISTORE_PASSWORD, process.env.DOLISTORE_LOGIN]))
   process.exit(1)

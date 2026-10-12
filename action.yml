@@ -13,6 +13,9 @@ inputs:
   dry-run:
     description: "Submits only when exactly 'false'; any other value fills the form and stops"
     default: 'true'
+  create:
+    description: "Create a NEW product (product.yml without id, with a create block) instead of updating one. Only for a manual run"
+    default: 'false'
   login:
     description: DoliStore login
     required: true
@@ -62,12 +65,14 @@ runs:
         IN_DESCRIPTOR: ${{ inputs.descriptor }}
         IN_ZIP: ${{ inputs.zip }}
         IN_DRYRUN: ${{ inputs.dry-run }}
+        IN_CREATE: ${{ inputs.create }}
         IN_OUT: ${{ runner.temp }}/dolistore-out
         ACTION_PATH: ${{ github.action_path }}
       run: |
         # Fail closed: a real submission only when the input is exactly "false"
         ARGS=()
         if [ "$IN_DRYRUN" = "false" ]; then ARGS+=(--submit); fi
+        if [ "$IN_CREATE" = "true" ]; then ARGS+=(--create); fi
         node "$ACTION_PATH/bin/dolistore-sync.mjs" \
           --module "$IN_MODULE" \
           --descriptor "$IN_DESCRIPTOR" \

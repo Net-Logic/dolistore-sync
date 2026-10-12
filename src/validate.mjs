@@ -17,7 +17,10 @@ function comparePhp(a, b) {
   return majorA - majorB || minorA - minorB
 }
 
-export function validate(data, { version, zipBytes }) {
+export const CREATE_STATUSES = ['submitted', 'disabled']
+
+// create: true checks a NEW product (no id yet, price/status/terms/cover required); false checks an update
+export function validate(data, { version, zipBytes, create = false }) {
   const errors = []
   const p = data.product ?? {}
   if (!isMapping(p)) {
@@ -25,9 +28,15 @@ export function validate(data, { version, zipBytes }) {
   }
 
   for (const key of REQUIRED) {
+    if (key === 'id' && create) {
+      continue
+    }
     if (isBlank(p[key])) {
       errors.push(`product.yml: "${key}" is missing`)
     }
+  }
+  if (create) {
+    errors.push(...validateCreate(data))
   }
   if (p.id !== undefined && !/^\d+$/.test(String(p.id))) {
     errors.push(`product.yml: "id" must be numeric, got "${p.id}"`)
@@ -127,6 +136,39 @@ export function validate(data, { version, zipBytes }) {
   }
   if ((data.screenshots || []).length > MAX_SCREENSHOTS) {
     errors.push(`At most ${MAX_SCREENSHOTS} screenshots, got ${data.screenshots.length}`)
+  }
+  return errors
+}
+
+// Extra rules of a creation: nothing is guessed, every legal and commercial choice is written in product.yml
+export function validateCreate(data) {
+  const errors = []
+  const p = data.product ?? {}
+  if (!isBlank(p.id)) {
+    errors.push('product.yml: "id" is set, the product already exists: use the normal update (without --create)')
+  }
+  const c = p.create
+  if (!isMapping(c)) {
+    errors.push('product.yml: a "create" block (price, status, accept_terms) is required to create a product')
+  } else {
+    const price = typeof c.price === 'number' ? c.price : Number.NaN
+    if (!Number.isFinite(price) || price < 0) {
+      errors.push('product.yml: create.price must be a number >= 0 (euros excl. tax, 0 is free)')
+    }
+    if (!CREATE_STATUSES.includes(c.status)) {
+      errors.push(`product.yml: create.status must be one of ${CREATE_STATUSES.join(', ')}`)
+    }
+    if (c.accept_terms !== true) {
+      errors.push('product.yml: create.accept_terms must be true (the seller terms are required by DoliStore and are accepted only on this explicit setting)')
+    }
+    for (const key of ['accept_wiki_notice', 'core_include']) {
+      if (c[key] !== undefined && typeof c[key] !== 'boolean') {
+        errors.push(`product.yml: create.${key} must be true or false`)
+      }
+    }
+  }
+  if (!data.cover) {
+    errors.push('dolistore/cover.png (or .jpg) is required: DoliStore needs a cover image')
   }
   return errors
 }

@@ -20,3 +20,18 @@ PNG/JPG/JPEG files in `dolistore/screenshots/` (at most 5, sorted by name) are t
 - `sync`: the product images are made identical to the repository, compared by content (sha256), in order. Running it twice in a row is a no-op. From the first image that differs, the remaining current images are deleted and the repository ones are uploaded. `sync` needs at least one image in the repository (it never deletes everything). Images added by hand on DoliStore are removed in this mode.
 
 The dry run only reports what would be deleted and added; it performs no write. The cover image is never touched.
+
+## Creating a new product
+
+An update needs the `id` of an existing product. To create a new one, write `dolistore/product.yml` **without `id`** and with a `create` block, add `dolistore/cover.png` (or `.jpg`, required by DoliStore), then run the action with `create: 'true'` (manually, never on a release):
+
+```yaml
+create:
+  price: 180              # euros excl. tax, 0 is free (only used for a creation, never sent by an update)
+  status: submitted       # submitted (validated within 15 days) or disabled
+  accept_terms: true      # the seller terms are accepted only on this explicit setting
+  accept_wiki_notice: true
+  core_include: false     # never on unless you write it
+```
+
+A dry run (default) fills the form and stops. A real run (`dry-run: 'false'`) uploads the zip and the cover, submits, then prints the id of the new product: write it in `product.yml` as `id:` and remove the `create` block; the next releases update the product. The extra screenshots are added afterwards through the normal update (`screenshots: sync`). A creation never runs twice by itself: if the run fails after the click, check DoliStore by hand before re-running.
