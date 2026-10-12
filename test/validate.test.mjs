@@ -200,3 +200,15 @@ test('update without id is still refused', () => {
   const d = created()
   assert.match(validate(d, ctx).join('\n'), /"id" is missing/)
 })
+
+test('cover option: keep and sync accepted, sync needs a cover file, other values rejected', () => {
+  const d = good()
+  d.product.cover = 'keep'
+  assert.deepEqual(validate(d, ctx), [])
+  d.product.cover = 'sync'
+  assert.match(validate(d, ctx).join('\n'), /cover: sync needs/)
+  d.cover = '/x/cover.png'
+  assert.deepEqual(validate(d, ctx), [])
+  d.product.cover = 'always'
+  assert.match(validate(d, ctx).join('\n'), /"cover" must be one of keep, sync/)
+})

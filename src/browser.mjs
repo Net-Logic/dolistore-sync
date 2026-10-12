@@ -210,8 +210,11 @@ export async function applyScreenshotPlan(page, plan, { desiredHashes, mode }) {
 }
 
 // Read-only check (no click) that the elements only a real run uses are still there
-export async function assertRealRunElements(page, { screenshots }) {
+export async function assertRealRunElements(page, { screenshots, cover = false }) {
   const selectors = ['#virtual_product_file', '#sub', '#dolibarr_terms']
+  if (cover) {
+    selectors.push('#image_cover')
+  }
   if (screenshots) {
     selectors.push('#fileInput2')
   }
@@ -318,6 +321,24 @@ export async function fillCreateExtras(page, create) {
   if (back.sale_price !== create.price) {
     throw new Error(`sale_price is "${back.sale_price}" in the form, expected "${create.price}"`)
   }
+}
+
+// Read-only (GET only): hash of the cover currently shown on the edit page, null when the product has none.
+// A failed or non-image download is an error, never "different".
+export async function readCover(page) {
+  const src = await page.locator('#image_preview').first().getAttribute('src').catch(() => null)
+  if (!src || src.startsWith('data:')) {
+    return null
+  }
+  const response = await page.request.get(new URL(src, page.url()).toString(), { maxRedirects: 0 })
+  if (response.status() !== 200) {
+    throw new Error(`cover: cannot read the current cover (HTTP ${response.status()})`)
+  }
+  const body = await response.body()
+  if (!isImageBody(response.headers()['content-type'] ?? '', body)) {
+    throw new Error('cover: cannot read the current cover (not an image)')
+  }
+  return hashBuffer(body)
 }
 
 export async function uploadCover(page, coverPath) {

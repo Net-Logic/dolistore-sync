@@ -35,3 +35,7 @@ create:
 ```
 
 A dry run (default) fills the form and stops. A real run (`dry-run: 'false'`) uploads the zip and the cover, submits, then prints the id of the new product: write it in `product.yml` as `id:` and remove the `create` block; the next releases update the product. The extra screenshots are added afterwards through the normal update (`screenshots: sync`). A creation never runs twice by itself: if the run fails after the click, check DoliStore by hand before re-running.
+
+## Cover image
+
+By default the cover of the product is never touched. With `cover: sync` in `product.yml` and a file `dolistore/cover.png` (or `.jpg`), a run compares the bytes of the current cover with the file and uploads it with the form only when they differ (a second run changes nothing). A dry run only reports; a real run checks afterwards that DoliStore now shows the file.
