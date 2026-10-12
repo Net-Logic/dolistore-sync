@@ -6,9 +6,10 @@ import { validate } from './validate.mjs'
 import { buildFormValues } from './form.mjs'
 import { assertZipMatchesVersion, readModuleVersion } from './version.mjs'
 import {
-  assertRealRunElements, fillForm, login, openProduct, planScreenshots, readFormFields, submit, takeScreenshot, uploadScreenshots, uploadZip,
+  assertRealRunElements, fillForm, applyScreenshotPlan, login, openProduct, readFormFields, readScreenshots, submit, takeScreenshot, uploadZip,
 } from './browser.mjs'
-import { installReadOnlyGuard } from './checks.mjs'
+import { installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
+import { hashFile, planScreenshots } from './screenshots.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
@@ -36,17 +37,26 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     await login(page, { login: email, password })
     loggedIn = true
     await openProduct(page, data.product.id)
+    // Screenshots phase, BEFORE the form: adding/deleting is an immediate AJAX call and the upload reloads the page
+    const mode = data.product.screenshots ?? 'if-empty'
+    const current = await readScreenshots(page)
+    const desired = data.screenshots.map((file) => ({ file, hash: hashFile(file) }))
+    const plan = planScreenshots({ mode, current, desired })
+    const screenshots = { mode, current: current.map((c) => c.id), plan: { del: plan.del, add: plan.add.map((f) => basename(f)), keep: plan.keep, reason: plan.reason } }
+    if (shouldApplyScreenshots({ dryRun, plan })) {
+      screenshots.applied = await applyScreenshotPlan(page, plan, { desiredHashes: desired.map((d) => d.hash), mode })
+      // The reload erased nothing yet, but start the form from a fresh page
+      await openProduct(page, data.product.id)
+    }
     // Dry run is strictly read-only: every non-GET/HEAD request is aborted and recorded
+    // (installed after the read-only screenshots phase)
     const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
     await fillForm(page, values)
-    // A dry run never sets the zip input nor adds screenshots: it only reports them
-    let screenshots
+    // A dry run never sets the zip input: it only reports
     if (dryRun) {
-      screenshots = await planScreenshots(page, data.screenshots)
-      await assertRealRunElements(page, { screenshots: screenshots.wouldAdd > 0 })
+      await assertRealRunElements(page, { screenshots: plan.add.length > 0 })
     } else {
       await uploadZip(page, zipPath)
-      screenshots = await uploadScreenshots(page, data.screenshots)
     }
     // Read-only: what the form currently holds as price (never sent by this tool)
     const currentPrice = (await readFormFields(page)).sale_price

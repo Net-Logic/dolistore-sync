@@ -1,5 +1,7 @@
+import { basename } from 'node:path'
+import { hashBuffer } from './screenshots.mjs'
 import {
-  FORM_FIELDS, LOGIN_SELECTORS, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern,
+  FORM_FIELDS, LOGIN_SELECTORS, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern, screenshotsMismatch,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -112,58 +114,69 @@ export async function uploadZip(page, zipPath) {
   await page.locator('#virtual_product_file').setInputFiles(zipPath)
 }
 
-// Read-only: what uploadScreenshots would do (safe in a dry run)
-export async function planScreenshots(page, files) {
+const rowsLocator = (page) => page.locator('#table-body-edit tr[data-id]')
+
+// Read-only (GET only): the current "other images" in page order, hashed from the exact downloaded bytes.
+// A failed download is an error, never "different".
+export async function readScreenshots(page) {
   if (await page.locator('#table-body-edit').count() === 0) {
     throw new Error('DoliStore form changed: #table-body-edit not found')
   }
-  const existing = await page.locator('#table-body-edit tr[data-id]').count()
-  if (existing > 0) {
-    return { wouldAdd: 0, reason: 'product already has screenshots' }
+  const rows = await rowsLocator(page).evaluateAll((trs) => trs.map((tr) => {
+    const img = tr.querySelector('img.image-preview')
+    return { id: tr.getAttribute('data-id'), src: img ? img.getAttribute('src') : null }
+  }))
+  const current = []
+  for (const row of rows) {
+    if (!row.src) {
+      throw new Error(`screenshots: cannot read the current image ${row.id} (no image preview)`)
+    }
+    const response = await page.request.get(new URL(row.src, page.url()).toString())
+    if (response.status() !== 200) {
+      throw new Error(`screenshots: cannot read the current image ${row.id} (HTTP ${response.status()})`)
+    }
+    const body = await response.body()
+    if (body.length === 0) {
+      throw new Error(`screenshots: cannot read the current image ${row.id} (HTTP ${response.status()}, empty body)`)
+    }
+    current.push({ id: row.id, hash: hashBuffer(body) })
   }
-  if (files.length === 0) {
-    return { wouldAdd: 0, reason: 'no screenshots in the repository' }
-  }
-  return { wouldAdd: files.length, reason: 'product has none yet' }
+  return current
 }
 
-const screenshotRows = (page) => page.locator('#table-body-edit tr[data-id]').count()
-
-async function waitForRows(page, expected) {
-  try {
-    await page.waitForFunction(
-      (n) => document.querySelectorAll('#table-body-edit tr[data-id]').length >= n,
-      expected,
-      { timeout: 30000 },
-    )
-  } catch {
-    throw new Error('screenshots not accepted')
+// REAL RUN ONLY (the caller gates it with shouldApplyScreenshots): deletes and uploads are immediate AJAX calls,
+// and every upload ends with location.reload(), which erases the form: re-open the product page afterwards.
+export async function applyScreenshotPlan(page, plan, { desiredHashes, mode }) {
+  let deleted = 0
+  let added = 0
+  for (const id of plan.del) {
+    await page.locator(`button.deleteBtn[data-id="${id}"]`).click()
+    try {
+      await page.locator(`#table-body-edit tr[data-id="${id}"]`).waitFor({ state: 'detached', timeout: 30000 })
+    } catch {
+      throw new Error(`screenshots: delete of ${id} not confirmed`)
+    }
+    deleted++
   }
-}
-
-// Selectors to be confirmed by the first dry run (see plan task 7 steps 5-6)
-// Real submission only (a dry run uses planScreenshots, which changes nothing).
-// Adds screenshots only when the product has none yet; never touches existing images
-export async function uploadScreenshots(page, files) {
-  const plan = await planScreenshots(page, files)
-  if (plan.wouldAdd === 0) {
-    return { added: 0, skipped: plan.reason }
+  for (const file of plan.add) {
+    const before = await rowsLocator(page).count()
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'load', timeout: 60000 }),
+      page.locator('#fileInput2').setInputFiles(file),
+    ])
+    if (await rowsLocator(page).count() !== before + 1) {
+      throw new Error(`screenshots: upload of ${basename(file)} not accepted`)
+    }
+    added++
   }
-  const input = page.locator('#fileInput2')
-  const before = await screenshotRows(page)
-  if (await input.getAttribute('multiple') !== null) {
-    await input.setInputFiles(files)
-    await waitForRows(page, before + files.length)
-  } else {
-    for (let i = 0; i < files.length; i++) {
-      await input.setInputFiles(files[i])
-      await waitForRows(page, before + i + 1)
+  const current = await readScreenshots(page)
+  if (mode === 'sync') {
+    const mismatch = screenshotsMismatch(current, desiredHashes)
+    if (mismatch) {
+      throw new Error(`screenshots differ after the sync: ${mismatch}`)
     }
   }
-  if (await screenshotRows(page) < before + files.length) {
-    throw new Error('screenshots not accepted')
-  }
-  return { added: files.length }
+  return { deleted, added }
 }
 
 // Read-only check (no click) that the elements only a real run uses are still there

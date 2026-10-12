@@ -121,3 +121,19 @@ export function compareSubmitted({ before, after, sent }) {
   }
   return problems
 }
+
+const abbreviate = (hashes) => hashes.map((h) => String(h).slice(0, 8)).join(', ')
+
+// null when the page holds exactly the wanted hash sequence, else a message naming both (8 hex chars each)
+export function screenshotsMismatch(current, desiredHashes) {
+  const got = current.map((c) => c.hash)
+  if (got.length === desiredHashes.length && got.every((h, i) => h === desiredHashes[i])) {
+    return null
+  }
+  return `DoliStore has ${got.length} [${abbreviate(got)}], expected ${desiredHashes.length} [${abbreviate(desiredHashes)}]`
+}
+
+// The only gate to applyScreenshotPlan: a dry run never writes
+export function shouldApplyScreenshots({ dryRun, plan }) {
+  return !dryRun && plan.del.length + plan.add.length > 0
+}

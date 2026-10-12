@@ -201,3 +201,28 @@ test('compareSubmitted: version, php and duration mismatches are flagged', () =>
   assert.equal(p.length, 2)
   assert.match(p.join('\n'), /version on DoliStore is "1\.2\.2", expected "1\.2\.3"/)
 })
+
+import { screenshotsMismatch, shouldApplyScreenshots } from '../src/checks.mjs'
+
+test('screenshotsMismatch: identical sequences give null', () => {
+  assert.equal(screenshotsMismatch([{ id: '1', hash: 'aa' }, { id: '2', hash: 'bb' }], ['aa', 'bb']), null)
+})
+
+test('screenshotsMismatch: different order or length names both sequences abbreviated', () => {
+  const h1 = '1234567890abcdef'
+  const h2 = 'fedcba0987654321'
+  const order = screenshotsMismatch([{ id: '1', hash: h1 }, { id: '2', hash: h2 }], [h2, h1])
+  assert.match(order, /\[12345678, fedcba09\].*\[fedcba09, 12345678\]/)
+  const len = screenshotsMismatch([{ id: '1', hash: h1 }], [h1, h2])
+  assert.match(len, /has 1 \[12345678\].*expected 2 \[12345678, fedcba09\]/)
+  assert.ok(!len.includes('1234567890'))
+})
+
+test('shouldApplyScreenshots: only a real run with something to do', () => {
+  const some = { del: ['1'], add: [] }
+  const none = { del: [], add: [] }
+  assert.equal(shouldApplyScreenshots({ dryRun: true, plan: some }), false)
+  assert.equal(shouldApplyScreenshots({ dryRun: true, plan: none }), false)
+  assert.equal(shouldApplyScreenshots({ dryRun: false, plan: some }), true)
+  assert.equal(shouldApplyScreenshots({ dryRun: false, plan: none }), false)
+})
