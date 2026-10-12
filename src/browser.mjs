@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import { hashBuffer } from './screenshots.mjs'
 import {
-  FORM_FIELDS, LOGIN_SELECTORS, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern, screenshotsMismatch, isImageBody,
+  FORM_FIELDS, LOGIN_SELECTORS, parseProductState, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern, screenshotsMismatch, isImageBody,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -390,5 +390,28 @@ export async function submitCreate(page, { name, zipName }) {
       throw error
     }
     throw new Error(`${SUBMITTED_PREFIX}: ${error.message}`)
+  }
+}
+
+// Read-only (GET only): state of the product in manage-products.php
+export async function readProductState(page, id) {
+  await page.goto(`${BASE}/manage-products.php`)
+  const text = await page.evaluate((source) => {
+    const re = new RegExp(source)
+    const link = [...document.querySelectorAll('a[href*="edit-module-product.php?id="]')].find((a) => re.test(a.getAttribute('href')))
+    const row = link && link.closest('tr')
+    return row ? row.innerText : null
+  }, productHrefPattern(id))
+  if (text === null) {
+    throw new Error('product row not found in manage-products.php')
+  }
+  return parseProductState(text)
+}
+
+// A product waiting for approval must be sent back as "submitted": the form would send "disabled" otherwise
+export async function keepPendingStatus(page) {
+  await page.locator('#status-submitted').check()
+  if (!(await page.locator('#status-submitted').isChecked())) {
+    throw new Error('could not keep the product in "waiting for approval"')
   }
 }

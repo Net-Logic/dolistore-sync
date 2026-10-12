@@ -151,3 +151,21 @@ export function isImageBody(contentType, buf) {
     || ascii(0, 'GIF87a') || ascii(0, 'GIF89a')
     || (ascii(0, 'RIFF') && ascii(8, 'WEBP'))
 }
+
+// State of a product as shown in the "État :" line of its row in manage-products.php
+// (the edit form shows a product waiting for approval with the "Désactivé" radio checked: submitting it would withdraw the request)
+export function parseProductState(rowText) {
+  const text = String(rowText ?? '').replace(/\s+/g, ' ')
+  const match = text.match(/(?:État|Etat|State|Status)\s*:\s*(.*?)(?:\s+-\s|\s+Fichier|\s+File|$)/i)
+  const label = (match ? match[1] : '').trim().toLowerCase()
+  if (/^(a|à) approuver/.test(label) || /^(to approve|waiting)/.test(label)) {
+    return 'pending'
+  }
+  if (/^(actif|active|enabled)/.test(label)) {
+    return 'active'
+  }
+  if (/^(désactivé|desactive|deactivated|disabled)/.test(label)) {
+    return 'disabled'
+  }
+  return 'unknown'
+}
