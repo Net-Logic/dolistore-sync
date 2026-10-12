@@ -26,12 +26,33 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: '22'
-    - name: Install the tool
+    # hashFiles() only sees the workspace, not the action folder: hash the lockfile by hand
+    - name: Cache keys
+      id: keys
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: |
-        npm ci
-        npx playwright install --with-deps chromium
+      run: echo "lock=$(sha256sum package-lock.json | cut -c1-16)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: dolistore-sync-npm-${{ runner.os }}-${{ steps.keys.outputs.lock }}
+    - name: Install the dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci
+    # The Chromium build depends on the Playwright version, which the lockfile pins
+    - uses: actions/cache@v4
+      id: browser
+      with:
+        path: ~/.cache/ms-playwright
+        key: dolistore-sync-chromium-${{ runner.os }}-${{ steps.keys.outputs.lock }}
+    # No --with-deps: it downloads fonts and system packages (several minutes on a slow mirror)
+    # that a headless form fill does not need; the GitHub runner already has the libraries Chromium links against
+    - name: Install Chromium
+      if: steps.browser.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npx playwright install chromium
     - name: Run
       shell: bash
       env:
