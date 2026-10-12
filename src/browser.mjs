@@ -128,7 +128,11 @@ const rowsLocator = (page) => page.locator('#table-body-edit tr[data-id]')
 // A failed download is an error, never "different".
 export async function readScreenshots(page) {
   if (await page.locator('#table-body-edit').count() === 0) {
-    throw new Error('DoliStore form changed: #table-body-edit not found')
+    // A product without extra images has no table at all (confirmed on a new product), only the upload input
+    if (await page.locator('#fileInput2').count() > 0) {
+      return []
+    }
+    throw new Error('DoliStore form changed: #table-body-edit and #fileInput2 not found')
   }
   const rows = await rowsLocator(page).evaluateAll((trs) => trs.map((tr) => {
     const img = tr.querySelector('img.image-preview')
