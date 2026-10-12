@@ -11,3 +11,12 @@ Screenshots masked: password/e-mail/login inputs, the page header and anything s
 Pin the action to a tag or a commit SHA before using it on other modules.
 
 A refusal by the DoliStore package validator (error box on the result page) shows its reasons in the job log.
+
+## Screenshots (`dolistore/screenshots/`)
+
+PNG/JPG/JPEG files in `dolistore/screenshots/` (at most 5, sorted by name) are the "Autres images" of the product. The optional `screenshots` key of `product.yml` chooses what to do with them:
+
+- `if-empty` (default when the key is absent): the images are uploaded only when the product has none yet; existing images are never touched.
+- `sync`: the product images are made identical to the repository, compared by content (sha256), in order. Running it twice in a row is a no-op. From the first image that differs, the remaining current images are deleted and the repository ones are uploaded. `sync` needs at least one image in the repository (it never deletes everything). Images added by hand on DoliStore are removed in this mode.
+
+The dry run only reports what would be deleted and added; it performs no write. The cover image is never touched.

@@ -144,3 +144,25 @@ test('price is optional and ignored: absent or present, both valid', () => {
   assert.deepEqual(validate(d, ctx), [])
   assert.deepEqual(validate(good(), ctx), [])
 })
+
+test('screenshots option: absent or valid modes are accepted', () => {
+  assert.deepEqual(validate(good(), ctx), [])
+  const d = good()
+  d.product.screenshots = 'if-empty'
+  assert.deepEqual(validate(d, ctx), [])
+  d.product.screenshots = 'sync'
+  d.screenshots = ['/r/a.png']
+  assert.deepEqual(validate(d, ctx), [])
+})
+
+test('screenshots option: a bad value is rejected', () => {
+  const d = good()
+  d.product.screenshots = 'always'
+  assert.ok(validate(d, ctx).includes('product.yml: "screenshots" must be one of if-empty, sync, got "always"'))
+})
+
+test('screenshots option: sync without images is rejected', () => {
+  const d = good()
+  d.product.screenshots = 'sync'
+  assert.ok(validate(d, ctx).includes('product.yml: screenshots: sync needs at least one image in dolistore/screenshots'))
+})

@@ -1,6 +1,7 @@
 import {
   CATEGORIES, DOLIBARR_VERSIONS, MAX_CATEGORIES, MAX_SCREENSHOTS, MAX_ZIP_BYTES, dolibarrNumber,
 } from './constants.mjs'
+import { SCREENSHOT_MODES } from './screenshots.mjs'
 import { toStoreVersion } from './version.mjs'
 
 // "price" is optional and ignored: it is managed on DoliStore and never sent
@@ -106,6 +107,14 @@ export function validate(data, { version, zipBytes }) {
 
   if (!isBlank(p.keywords) && !Array.isArray(p.keywords)) {
     errors.push('product.yml: "keywords" must be a list')
+  }
+
+  if (!isBlank(p.screenshots)) {
+    if (!SCREENSHOT_MODES.includes(p.screenshots)) {
+      errors.push(`product.yml: "screenshots" must be one of ${SCREENSHOT_MODES.join(', ')}, got "${p.screenshots}"`)
+    } else if (p.screenshots === 'sync' && (data.screenshots || []).length === 0) {
+      errors.push('product.yml: screenshots: sync needs at least one image in dolistore/screenshots')
+    }
   }
 
   try {
