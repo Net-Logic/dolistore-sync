@@ -91,8 +91,10 @@ function requirements(text, context, t, lang) {
   return [h2(t.requirements), table([`<tr>\n<td style="${STYLES.box}">\n${padded(STYLES.boxInner, `\n${ul(items)}\n`)}\n</td>\n</tr>`])]
 }
 
-function installation(text, t) {
-  const steps = t.install.map((step) => fill(step, { name: escapeHtml(moduleName(text.title)) }))
+// The third installation step (give the permissions) is left out when the descriptor declares none
+function installation(text, context, t) {
+  const install = context && context.hasRights === false ? t.install.slice(0, 2) : t.install
+  const steps = install.map((step) => fill(step, { name: escapeHtml(moduleName(text.title)) }))
   if (typeof text.start === 'string' && text.start.trim() !== '') {
     steps.push(toInlineHtml(text.start))
   }
@@ -123,7 +125,7 @@ export function renderLayout({ lang, text, product, context = {} }) {
     parts.push(h2(t.how), ol(body.how.map(toInlineHtml)))
   }
   parts.push(...requirements(text, context, t, lang))
-  parts.push(...installation(text, t))
+  parts.push(...installation(text, context, t))
   parts.push(...support(product, t, lang))
   return `${parts.join('\n')}\n`
 }

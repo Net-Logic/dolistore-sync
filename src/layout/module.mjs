@@ -23,10 +23,16 @@ export function readDepends(descriptorSource) {
   return [...match[1].matchAll(/(['"])(mod\w+)\1/g)].map((m) => m[2])
 }
 
+// True when an uncommented line of the descriptor declares a permission ($this->rights[...])
+export function readHasRights(descriptorSource) {
+  return /^[ \t]*\$this->rights\[/m.test(String(descriptorSource))
+}
+
 // What the netlogic layout needs from the module beside dolistore/
 export function loadLayoutContext(moduleDir, descriptorSource) {
   return {
     interfaceLangs: readInterfaceLangs(moduleDir),
     depends: readDepends(descriptorSource),
+    hasRights: readHasRights(descriptorSource),
   }
 }
