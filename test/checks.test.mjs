@@ -255,3 +255,73 @@ test('product state from the manage-products row', () => {
   assert.equal(parseProductState('État: Désactivé - The module has been deactivated by the developer Fichier: m.zip'), 'disabled')
   assert.equal(parseProductState('no state here'), 'unknown')
 })
+
+import { formatStyleLoss, normalizeStyle, styleDiff } from '../src/checks.mjs'
+
+const sent = [
+  '<h2 style="background-color:#324F9B; color:#ffffff; padding:8px 14px; border-radius:5px; margin:24px 0 12px 0">Features</h2>',
+  '<table style="width:100%; border-collapse:collapse">',
+  '<tbody>',
+  '<tr>',
+  '<td style="width:50%; background-color:#F1F5FF; vertical-align:top; padding:12px 14px; border:8px solid #ffffff; border-left:0"><strong style="color:#324F9B">Lead</strong><br>text</td>',
+  '<td style="width:50%; border:8px solid #ffffff; border-right:0"></td>',
+  '</tr>',
+  '</tbody>',
+  '</table>',
+  '<ul style="margin:0; padding-left:22px">',
+  '<li><a href="https://www.dolistore.com/product.php?id=807&amp;l=en" style="color:#FF4939"><strong>X</strong></a> - y</li>',
+  '</ul>',
+].join('\n')
+
+// What CKEditor 4 gives back when it keeps the styles: rgb() colours, other declaration order and
+// spacing, 0px, upper-case properties, attribute order, <br />, &nbsp; in the empty cell
+const kept = [
+  '<h2 style="background-color: rgb(50, 79, 155); color: rgb(255, 255, 255); padding: 8px 14px; border-radius: 5px; margin: 24px 0px 12px 0px;">Features</h2>',
+  '<table style="border-collapse: collapse; width: 100%;">',
+  '\t<tbody>',
+  '\t\t<tr>',
+  '\t\t\t<td style="WIDTH: 50%; vertical-align: top; background-color: #f1f5ff; padding: 12px 14px; border: 8px solid #FFF; border-left: 0px;"><strong style="color:#324f9b">Lead</strong><br />',
+  '\t\t\ttext</td>',
+  '\t\t\t<td style="border-right:0px; width:50%; border:8px solid rgb(255,255,255)">&nbsp;</td>',
+  '\t\t</tr>',
+  '\t</tbody>',
+  '</table>',
+  '',
+  '<ul style="padding-left:22px;margin:0px">',
+  '\t<li><a style="color:rgb(255, 73, 57)" href="https://www.dolistore.com/product.php?id=807&amp;l=en"><strong>X</strong></a> - y</li>',
+  '</ul>',
+].join('\n')
+
+test('normalizeStyle: case, spacing, order, rgb() and short hex colours, 0px', () => {
+  assert.equal(normalizeStyle('Color: RGB(50, 79, 155);  padding:0px 14px'), normalizeStyle('padding:0 14px; color:#324F9B'))
+  assert.equal(normalizeStyle('border:8px solid #FFF'), 'border:8px solid #ffffff')
+  assert.equal(normalizeStyle('color: rgba(255, 73, 57, 1)'), 'color:#ff4939')
+  assert.equal(normalizeStyle(''), '')
+})
+
+test('styleDiff: a CKEditor output that keeps the styles gives no loss', () => {
+  assert.deepEqual(styleDiff(sent, kept), { missing: [], extra: [] })
+  assert.equal(formatStyleLoss('description_en', styleDiff(sent, kept)), null)
+})
+
+test('styleDiff: stripped or changed styles are listed by tag', () => {
+  const stripped = kept
+    .replace(/<h2 style="[^"]*">/, '<h2>')
+    .replace(/<td style="WIDTH[^"]*">/, '<td>')
+    .replace('color:rgb(255, 73, 57)', 'color:#000000')
+  const diff = styleDiff(sent, stripped)
+  assert.deepEqual(diff.missing, [
+    'h2 {background-color:#324f9b; border-radius:5px; color:#ffffff; margin:24px 0 12px 0; padding:8px 14px}',
+    'td {background-color:#f1f5ff; border-left:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}',
+    'a {color:#ff4939}',
+  ])
+  assert.deepEqual(diff.extra, ['a {color:#000000}'])
+  const message = formatStyleLoss('description_fr', diff)
+  assert.match(message, /description_fr: DoliStore's editor stripped or changed 3 inline styles of the layout/)
+  assert.match(message, /- h2 \{background-color:#324f9b/)
+  assert.match(message, /got instead: a \{color:#000000\}/)
+})
+
+test('styleDiff: plain HTML without styles has nothing to check', () => {
+  assert.deepEqual(styleDiff('<p><strong>x</strong></p>', '<p><b>x</b></p>'), { missing: [], extra: [] })
+})

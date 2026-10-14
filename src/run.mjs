@@ -62,7 +62,7 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       // Uploads reload the page: re-open it so the form (not filled yet) starts from a fresh page
       await openProduct(page, data.product.id)
     }
-    await fillForm(page, values)
+    await fillForm(page, values, { checkStyles: Boolean(data.product.layout) })
     if (stateBefore === 'pending') {
       await keepPendingStatus(page)
     }
@@ -141,7 +141,7 @@ export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir
     loggedIn = true
     const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
     await openNewProduct(page)
-    await fillForm(page, values, { creating: true })
+    await fillForm(page, values, { creating: true, checkStyles: Boolean(data.product.layout) })
     await fillCreateExtras(page, create)
     await assertCreateElements(page)
     if (!dryRun) {

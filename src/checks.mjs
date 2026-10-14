@@ -169,3 +169,72 @@ export function parseProductState(rowText) {
   }
   return 'unknown'
 }
+
+const hex2 = (n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0')
+
+// One CSS declaration list in a comparable form: lower case, single spaces, colours as #rrggbb,
+// 0px as 0, declarations sorted (CKEditor reorders and respaces them, and writes rgb() colours)
+export function normalizeStyle(style) {
+  return String(style ?? '')
+    .split(';')
+    .map((decl) => {
+      const at = decl.indexOf(':')
+      if (at === -1) {
+        return ''
+      }
+      const prop = decl.slice(0, at).trim().toLowerCase()
+      const value = decl.slice(at + 1).trim().toLowerCase()
+        .replace(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*1(?:\.0*)?\s*)?\)/g, (all, r, g, b) => `#${hex2(r)}${hex2(g)}${hex2(b)}`)
+        .replace(/#([0-9a-f])([0-9a-f])([0-9a-f])\b/g, '#$1$1$2$2$3$3')
+        .replace(/(^|[\s(,])0px\b/g, '$10')
+        .replace(/\s+/g, ' ')
+      return prop && value ? `${prop}:${value}` : ''
+    })
+    .filter(Boolean)
+    .sort()
+    .join('; ')
+}
+
+// (tag, normalised style) of every element carrying a style attribute, in document order
+function styledTags(html) {
+  const pairs = []
+  for (const match of String(html ?? '').matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
+    const style = match[2].match(/\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i)
+    if (style) {
+      const normalized = normalizeStyle(decode(style[1] ?? style[2]))
+      if (normalized) {
+        pairs.push(`${match[1].toLowerCase()} {${normalized}}`)
+      }
+    }
+  }
+  return pairs
+}
+
+// Styles of the sent HTML that the editor's HTML no longer holds (missing), and the styled elements
+// of the editor's HTML that match nothing sent (extra, shown as context). Text is checked elsewhere.
+export function styleDiff(expectedHtml, gotHtml) {
+  const got = styledTags(gotHtml)
+  const missing = []
+  for (const pair of styledTags(expectedHtml)) {
+    const at = got.indexOf(pair)
+    if (at === -1) {
+      missing.push(pair)
+    } else {
+      got.splice(at, 1)
+    }
+  }
+  return { missing, extra: missing.length > 0 ? got : [] }
+}
+
+// null when nothing is lost, else a message listing every stripped or changed style
+export function formatStyleLoss(name, diff) {
+  if (diff.missing.length === 0) {
+    return null
+  }
+  const lines = [`${name}: DoliStore's editor stripped or changed ${diff.missing.length} inline styles of the layout:`]
+  lines.push(...diff.missing.map((pair) => `- ${pair}`))
+  if (diff.extra.length > 0) {
+    lines.push(`got instead: ${diff.extra.join(', ')}`)
+  }
+  return lines.join('\n')
+}

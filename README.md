@@ -82,7 +82,11 @@ Features are shown as a two-column grid, How it works and Installation as number
 
 ### Related modules (`src/catalogue.mjs`)
 
-The "More Net-Logic modules on DoliStore" links come from a catalogue of the published Net-Logic modules (DoliStore id, name and tagline per language, categories). The tool picks the modules sharing at least one category with the product, `Modules/Plugins` excepted, by number of shared categories then catalogue order, at most 4, the product itself excluded. `related: [807, 1029]` in `product.yml` overrides the choice; an id that is not in the catalogue is refused. Add a module to the catalogue when it gets its DoliStore id.
+The "More Net-Logic modules on DoliStore" links come from a catalogue of the Net-Logic products publicly active on DoliStore (DoliStore id, name and tagline per language, categories). The tool picks the modules sharing at least one category with the product, `Modules/Plugins` excepted, by number of shared categories then catalogue order, and fills up to 4 links with the other catalogue entries in catalogue order; the product itself is never listed. `related: [807, 1029]` in `product.yml` overrides the choice and the fill-up (`related: []` shows no link); an id that is not in the catalogue is refused. Add a product to the catalogue when its DoliStore page is live.
+
+### Styles kept by DoliStore's editor
+
+With a layout, the form fill also compares the HTML that DoliStore's CKEditor gives back with the HTML sent: every element's inline style, after normalising case, spacing, declaration order, `rgb()` colours and `0px`. A stripped or changed style stops the run, dry run included, with the list of what was lost in every language. Without a layout only the text is compared, as before.
 
 ## Preview without DoliStore
 
