@@ -372,3 +372,13 @@ test('styleDiff: a table attribute that disappears is listed', () => {
 test('styleDiff: plain HTML without styles has nothing to check', () => {
   assert.deepEqual(styleDiff('<p><strong>x</strong></p>', '<p><b>x</b></p>'), { missing: [], extra: [] })
 })
+
+test('styleDiff: an attribute the editor adds on its own (cellspacing="0" on every table) is not a loss', () => {
+  // v0.4.2-rc1 dry run, 2026-10-14: the layout sends no table attribute, CKEditor adds cellspacing="0" everywhere
+  const sentHtml = '<table style="width:100%; border-collapse:collapse"><tbody><tr><td style="background-color:#F1F5FF; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">x</td></tr></tbody></table>'
+  const gotHtml = '<table cellspacing="0" style="border-collapse:collapse; width:100%"><tbody><tr><td style="background-color:rgb(241, 245, 255); border-left-color:rgb(50, 79, 155); border-left-style:solid; border-left-width:6px">x</td></tr></tbody></table>'
+  assert.deepEqual(styleDiff(sentHtml, gotHtml), { missing: [], extra: [] })
+  // An attribute we do send is still checked
+  const withPadding = sentHtml.replace('<table style=', '<table cellpadding="12" style=')
+  assert.deepEqual(styleDiff(withPadding, gotHtml).missing, ['table[cellpadding="12"] {border-collapse:collapse; width:100%}'])
+})
