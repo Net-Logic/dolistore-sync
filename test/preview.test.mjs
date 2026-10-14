@@ -5,7 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { previewPage, runPreview } from '../src/preview.mjs'
+import { asServed, previewPage, runPreview } from '../src/preview.mjs'
 
 const bin = fileURLToPath(new URL('../bin/dolistore-sync.mjs', import.meta.url))
 const fixtures = fileURLToPath(new URL('./fixtures', import.meta.url))
@@ -57,4 +57,11 @@ test('cli --preview still needs --module and --descriptor', () => {
   const r = spawnSync('node', [bin, '--preview', tmpdir()], { encoding: 'utf8', env })
   assert.equal(r.status, 2)
   assert.match(r.stderr, /Missing --module/)
+})
+
+test('the preview drops the table attributes like DoliStore\'s server', () => {
+  assert.equal(asServed('<table cellpadding="12" cellspacing="0" style="width:100%" border="1"><tr><td>x</td></tr></table><table border="0">'), '<table style="width:100%"><tr><td>x</td></tr></table><table>')
+  const html = previewPage({ lang: 'en', title: 'T', short: 'S', description: '<table cellpadding="10" style="width:100%"><tr><td>x</td></tr></table>', product: {}, version: '1' })
+  assert.match(html, /<table style="width:100%"><tr>/)
+  assert.doesNotMatch(html, /cellpadding/)
 })

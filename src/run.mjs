@@ -12,6 +12,7 @@ import { SUBMITTED_PREFIX, installReadOnlyGuard, shouldApplyScreenshots } from '
 import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
 import { coverMode, planCover } from './cover.mjs'
 import { loadLayoutContext } from './layout/module.mjs'
+import { checkPublicPage } from './public.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
@@ -98,7 +99,10 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
         throw new Error(`${SUBMITTED_PREFIX}: the cover on DoliStore is not the one of the repository after the submission`)
       }
     }
-    return { submitted: true, values }
+    // Real submit only: the server may still strip what the editor kept. Warnings, never a failure
+    // (the product is already submitted, and a submit is never retried)
+    const warnings = data.product.layout ? await checkPublicPage({ id: data.product.id, text: values.text }) : []
+    return { submitted: true, values, warnings }
   } catch (error) {
     if (loggedIn) {
       await takeScreenshot(page, join(outDir, 'dolistore-error.png'), email).catch(() => {})

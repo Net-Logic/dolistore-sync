@@ -80,7 +80,7 @@ Generated sections:
 
 Section headings are light blue table cells with a navy left bar, features a two-column grid of light blue cells, Requirements a light blue box; How it works and Installation are plain numbered lists. Module text goes through the same safe Markdown renderer as before (bold, italic, code, safe links): raw HTML stays escaped.
 
-The markup only uses what DoliStore's CKEditor keeps (seen on the first dry run): styles on `<table>` (width, border-collapse) and `<td>` (background, borders, vertical-align, width), and the `cellpadding` attribute for the inner spacing. Every style on headings, bold text, lists and links, `td` padding and `border-spacing` are stripped by the editor, so they are not used: headings and links take DoliStore's own colours. The gutters are white `td` borders, because the public page's CSS forces `border-collapse:collapse; border-spacing:0` on tables (a `cellspacing` attribute has no effect there).
+The markup only uses what DoliStore keeps: styles on `<table>` (width, border-collapse) and `<td>` (background, per-side border longhands, vertical-align, width), and no table attribute at all. The editor strips every style on headings, bold text, lists and links, `td` padding and `border-spacing`, sorts each style's declarations alphabetically (so borders are written per side, never as a shorthand plus an override), and the server drops `cellpadding`/`cellspacing` when it saves. So headings and links take DoliStore's own colours, the inner spacing is a nested one-cell table whose cell has thick borders of its own background colour, and the gutters are white `td` borders in collapsed tables (the public CSS forces `border-collapse:collapse; border-spacing:0`).
 
 ### Related modules (`src/catalogue.mjs`)
 
@@ -89,6 +89,8 @@ The "More Net-Logic modules on DoliStore" links come from a catalogue of the Net
 ### Styles and attributes kept by DoliStore's editor
 
 With a layout, the form fill also compares the HTML that DoliStore's CKEditor gives back with the HTML sent: every element's inline style and the `border`/`cellpadding`/`cellspacing` attributes of tables, after normalising case, spacing, declaration order, `rgb()` colours, `0px` and the border shorthands (CKEditor writes `border:8px solid #fff` as `border-color`/`border-style`/`border-width`). A stripped or changed style or attribute stops the run, dry run included, with the list of what was lost in every language. Without a layout only the text is compared, as before.
+
+After a real submit with a layout (never in a dry run), the tool reads the public product page of every language anonymously and compares its description the same way. What DoliStore's server dropped on save is printed as a warning in the job log; the run does not fail and nothing is submitted again.
 
 ## Preview without DoliStore
 

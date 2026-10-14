@@ -51,6 +51,14 @@ try {
     password: process.env.DOLISTORE_PASSWORD,
   })
   console.log(!result.submitted ? 'Dry run done, nothing submitted.' : values.create ? `Product created on DoliStore with id ${result.id}: write it in dolistore/product.yml.` : 'Product updated on DoliStore.')
+  for (const warning of result.warnings ?? []) {
+    // GitHub annotation on the first line, the details as plain log lines
+    const [first, ...rest] = warning.split('\n')
+    console.log(`::warning title=DoliStore public page::${first}`)
+    for (const line of rest) {
+      console.log(line)
+    }
+  }
 } catch (error) {
   console.error(maskSecrets(error.message, [process.env.DOLISTORE_PASSWORD, process.env.DOLISTORE_LOGIN]))
   process.exit(1)
