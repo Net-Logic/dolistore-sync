@@ -228,3 +228,10 @@ test('the permissions step of the installation is left out when the descriptor d
   assert.match(en, /<li>Enable <strong>[^<]+<\/strong>\.<\/li>/)
   assert.doesNotMatch(render(d, 'fr'), /permissions à vos utilisateurs/)
 })
+
+test('ECM, categories and scheduled jobs dependencies use Dolibarr\'s own module names', () => {
+  const d = layoutData()
+  d.layout.depends = ['modECM', 'modCategorie', 'modCron']
+  assert.match(render(d, 'en'), /Required Dolibarr modules: DMS \/ ECM, Tags\/Categories, Scheduled jobs/)
+  assert.match(render(d, 'fr'), /Modules Dolibarr requis : GED, Libellés\/Catégories, Travaux planifiés/)
+})

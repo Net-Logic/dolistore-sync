@@ -156,4 +156,8 @@ export const DOLIBARR_MODULES = {
   modBanque: { en: 'Banks', fr: 'Banques', de: 'Banken', it: 'Banche', es: 'Bancos' },
   modExpedition: { en: 'Shipments', fr: 'Expéditions', de: 'Lieferungen', it: 'Spedizioni', es: 'Envíos' },
   modContrat: { en: 'Contracts', fr: 'Contrats', de: 'Verträge', it: 'Contratti', es: 'Contratos' },
+  // Names as in Dolibarr's own admin.lang (Module2500Name, Module1780Name, Module2300Name)
+  modECM: { en: 'DMS / ECM', fr: 'GED', de: 'DMS/ECM', it: 'DMS / ECM', es: 'GED / SGD' },
+  modCategorie: { en: 'Tags/Categories', fr: 'Libellés/Catégories', de: 'Kategorien', it: 'Tag/categorie', es: 'Etiquetas/Categorías' },
+  modCron: { en: 'Scheduled jobs', fr: 'Travaux planifiés', de: 'Geplante Jobs', it: 'Processi pianificati', es: 'Tareas programadas' },
 }
