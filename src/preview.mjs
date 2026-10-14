@@ -7,6 +7,15 @@ import { escapeHtml } from './markdown.mjs'
 import { validate } from './validate.mjs'
 import { readModuleVersion, toStoreVersion } from './version.mjs'
 
+// DoliStore's server drops every attribute of <table> but style when it saves a description
+// (cellpadding and cellspacing are gone on the live page of 792, 2026-10-14): the preview does the same
+export function asServed(html) {
+  return String(html).replace(/<table\b[^>]*>/gi, (tag) => {
+    const style = tag.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/i)
+    return style ? `<table style=${style[1]}>` : '<table>'
+  })
+}
+
 // A static page that looks like a DoliStore product page, around the generated description.
 // No script, no external resource: it opens offline.
 export function previewPage({ lang, title, short, description, product, version }) {
@@ -70,7 +79,7 @@ body { margin: 0; color: #111; background-color: #f2f2f2; font: 13px/1.42857 Ari
 <div class="tabs"><span>Description</span></div>
 <div class="tabcontent">
 <div class="rte fulldescription">
-${description.trim()}
+${asServed(description).trim()}
 </div>
 </div>
 </div>

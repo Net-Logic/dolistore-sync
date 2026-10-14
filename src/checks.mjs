@@ -222,11 +222,12 @@ const attribute = (attrs, name) => {
   return match ? decode(match[1] ?? match[2] ?? match[3]).trim().toLowerCase() : null
 }
 
-// tag[attributes] {normalised style} of every element carrying a style or a checked attribute, in document order
-function styledTags(html) {
+// tag[attributes] {normalised style} of every element carrying a style or a checked attribute, in document order.
+// Only the attributes named in `names` are taken into account.
+function styledTags(html, names = CHECKED_ATTRIBUTES) {
   const pairs = []
   for (const match of String(html ?? '').matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
-    const attrs = CHECKED_ATTRIBUTES.map((name) => [name, attribute(match[2], name)]).filter(([, value]) => value !== null)
+    const attrs = names.map((name) => [name, attribute(match[2], name)]).filter(([, value]) => value !== null)
     const style = normalizeStyle(attribute(match[2], 'style') ?? '')
     if (style || attrs.length > 0) {
       pairs.push(`${match[1].toLowerCase()}${attrs.map(([name, value]) => `[${name}="${value}"]`).join('')} {${style}}`)
@@ -237,10 +238,13 @@ function styledTags(html) {
 
 // Styles and table attributes of the sent HTML that the editor's HTML no longer holds (missing), and the
 // styled elements of the editor's HTML that match nothing sent (extra, shown as context). Text is checked elsewhere.
+// Only the table attributes the sent HTML uses are compared: CKEditor adds cellspacing="0" to every table on its
+// own (seen on DoliStore, 2026-10-14), which is not a loss.
 export function styleDiff(expectedHtml, gotHtml) {
-  const got = styledTags(gotHtml)
+  const sentNames = CHECKED_ATTRIBUTES.filter((name) => new RegExp(`<[a-z][a-z0-9]*\\b[^>]*\\s${name}\\s*=`, 'i').test(String(expectedHtml ?? '')))
+  const got = styledTags(gotHtml, sentNames)
   const missing = []
-  for (const pair of styledTags(expectedHtml)) {
+  for (const pair of styledTags(expectedHtml, sentNames)) {
     const at = got.indexOf(pair)
     if (at === -1) {
       missing.push(pair)

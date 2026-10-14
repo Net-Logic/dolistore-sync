@@ -75,7 +75,7 @@ test('Requirements is left out when there is nothing to list', () => {
 test('Installation: deploy, enable the module name, permissions, then the start line', () => {
   const d = layoutData()
   const en = render(d, 'en')
-  assert.match(en, />Installation<\/h2>\s*<\/td>\s*<\/tr>\s*<\/tbody>\s*<\/table>\s*<ol>\s*<li>Deploy the zip with <strong>Home → Setup → Modules → Deploy an external module<\/strong>\.<\/li>\s*<li>Enable <strong>Layout Demo<\/strong>\.<\/li>\s*<li>Give the permissions to your users\.<\/li>\s*<li>Open a third-party card and click <strong>Send<\/strong>\.<\/li>\s*<\/ol>/)
+  assert.match(en, />Installation<\/h2>(\s*<\/td>\s*<\/tr>\s*<\/tbody>\s*<\/table>){2}\s*<ol>\s*<li>Deploy the zip with <strong>Home → Setup → Modules → Deploy an external module<\/strong>\.<\/li>\s*<li>Enable <strong>Layout Demo<\/strong>\.<\/li>\s*<li>Give the permissions to your users\.<\/li>\s*<li>Open a third-party card and click <strong>Send<\/strong>\.<\/li>\s*<\/ol>/)
   assert.match(render(d, 'fr'), /<li>Activez <strong>Démo mise en page<\/strong>\.<\/li>/)
   delete d.langs.en.start
   assert.equal((render(d, 'en').match(/<li>/g) || []).length, 3 + 3 + 3 + 4)
@@ -93,21 +93,41 @@ test('Support: e-mail, update days, then the related modules with their localize
   assert.doesNotMatch(render(none, 'en'), /More Net-Logic modules/)
 })
 
-const HEADING = '<table cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">\n<h2>Features</h2>\n</td>\n</tr>\n</tbody>\n</table>'
-const LEFT = 'background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:0px; border-right-color:#ffffff; border-right-style:solid; border-right-width:8px; vertical-align:top; width:50%'
-const RIGHT = 'background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:8px; border-right-color:#ffffff; border-right-style:solid; border-right-width:0px; vertical-align:top; width:50%'
-const EMPTY = '<td style="border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:8px; border-right-color:#ffffff; border-right-style:solid; border-right-width:0px; vertical-align:top; width:50%"></td>'
+const T = '<table style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n'
+const END = '\n</tr>\n</tbody>\n</table>'
+const side = (name, color, width) => `border-${name}-color:${color}; border-${name}-style:solid; border-${name}-width:${width}`
+const pad = (width) => ['top', 'right', 'bottom', 'left'].map((name) => side(name, '#F1F5FF', width)).join('; ')
+const HEADING = `${T}<td style="background-color:#F1F5FF; ${side('top', '#ffffff', '8px')}; ${side('bottom', '#ffffff', '8px')}; ${side('left', '#324F9B', '6px')}">\n${T}<td style="background-color:#F1F5FF; ${pad('10px')}">\n<h2>Features</h2>\n</td>${END}\n</td>${END}`
+const gutter = (left, right) => `${side('top', '#ffffff', '8px')}; ${side('bottom', '#ffffff', '8px')}; ${side('left', '#ffffff', left)}; ${side('right', '#ffffff', right)}`
+const LEFT = `background-color:#F1F5FF; ${gutter('0px', '8px')}; vertical-align:top; width:50%`
+const RIGHT = `background-color:#F1F5FF; ${gutter('8px', '0px')}; vertical-align:top; width:50%`
+const INNER = `background-color:#F1F5FF; ${pad('12px')}; vertical-align:top`
+const tile = (style, content) => `<td style="${style}">\n${T}<td style="${INNER}">${content}</td>${END}\n</td>`
+const EMPTY = `<td style="${gutter('8px', '0px')}; vertical-align:top; width:50%"></td>`
 
-test('styles: light blue heading cells with a navy left bar, a feature grid with white gutters, a light blue requirements box', () => {
+test('styles: light blue heading cells with a navy left bar, tiles with white gutters, a light blue requirements box, spacing by nested cells', () => {
   const d = layoutData()
   const en = render(d, 'en')
-  assert.ok(en.includes(HEADING))
+  assert.ok(en.includes(HEADING), en.slice(0, 1500))
   assert.match(en, /<p><strong>Layout Demo<\/strong> sends one email with everything\.<\/p>/)
-  assert.ok(en.includes(`<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="${LEFT}"><strong>First feature</strong><br>the first text.</td>\n<td style="${RIGHT}"><strong>Second feature</strong><br>the second text with <code>code</code>.</td>\n</tr>`))
-  // 3 features: the 4th cell is empty, without background
-  assert.ok(en.includes(`<td style="${LEFT}"><strong>Third feature</strong><br>the third text.</td>\n${EMPTY}\n</tr>`))
-  assert.match(en, />Requirements<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:0px; border-right-color:#ffffff; border-right-style:solid; border-right-width:0px">\n<ul>\n<li>Interface languages/)
-  assert.match(en, />How it works<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<ol>\n<li>Open the card\.<\/li>/)
+  assert.ok(en.includes(`${T}${tile(LEFT, '<strong>First feature</strong><br>the first text.')}\n${tile(RIGHT, '<strong>Second feature</strong><br>the second text with <code>code</code>.')}\n</tr>`))
+  // 3 features: the 4th cell is empty, without background and without inner table
+  assert.ok(en.includes(`${tile(LEFT, '<strong>Third feature</strong><br>the third text.')}\n${EMPTY}\n</tr>`))
+  assert.ok(en.includes(`<h2>Requirements</h2>\n</td>${END}\n</td>${END}\n${T}<td style="background-color:#F1F5FF; ${gutter('0px', '0px')}">\n${T}<td style="background-color:#F1F5FF; ${pad('12px')}">\n<ul>\n<li>Interface languages`))
+  assert.ok(en.includes(`<h2>How it works</h2>\n</td>${END}\n</td>${END}\n<ol>\n<li>Open the card.</li>`))
+})
+
+test('no generated table carries an attribute other than style (the server strips cellpadding and cellspacing)', () => {
+  const en = render(layoutData(), 'en')
+  const tables = [...en.matchAll(/<table\b([^>]*)>/g)].map((m) => m[1])
+  assert.ok(tables.length > 10)
+  for (const attrs of tables) {
+    assert.equal(attrs, ' style="width:100%; border-collapse:collapse"')
+  }
+  assert.doesNotMatch(en, /cellpadding|cellspacing/)
+  for (const m of en.matchAll(/<td\b([^>]*)>/g)) {
+    assert.match(m[1], /^ style="[^"]*"$/)
+  }
 })
 
 test('only the styles DoliStore\'s editor keeps: on table and td, from its allowed list', () => {
@@ -126,7 +146,7 @@ test('only the styles DoliStore\'s editor keeps: on table and td, from its allow
       assert.ok(allowed[tag].includes(decl.split(':')[0].trim()), `${tag}: ${decl}`)
     }
   }
-  assert.doesNotMatch(en, /#FF4939|[;"\s]color\s*:|[;"\s]padding\s*:|margin|border-spacing|border-radius|font-|cellspacing="[1-9]/i)
+  assert.doesNotMatch(en, /#FF4939|[;"\s]color\s*:|[;"\s]padding\s*:|margin|border-spacing|border-radius|font-|cellspacing|cellpadding/i)
   assert.doesNotMatch(en, /<(h2|ol|ul|li|strong|a|p|span)\s[^>]*style=/)
 })
 
@@ -186,6 +206,9 @@ test('every generated cell keeps its borders when DoliStore sorts the declaratio
   const html = render(layoutData(), 'en')
   const styles = [...html.matchAll(/<td style="([^"]*)"/g)].map((m) => m[1])
   assert.ok(styles.length > 0)
+  // The nested padding cells (heading 10px, tiles and box 12px) are covered too
+  assert.ok(styles.filter((style) => style.includes('border-left-color:#F1F5FF; border-left-style:solid; border-left-width:10px')).length >= 5)
+  assert.ok(styles.filter((style) => style.includes('border-left-color:#F1F5FF; border-left-style:solid; border-left-width:12px')).length === 4)
   for (const style of styles) {
     const sorted = style.split(';').map((d) => d.trim()).filter(Boolean).sort().join('; ')
     assert.equal(resolveBorders(sorted), resolveBorders(style), `borders change once sorted: ${style}`)

@@ -257,6 +257,9 @@ test('product state from the manage-products row', () => {
 })
 
 import { formatStyleLoss, normalizeStyle, styleDiff } from '../src/checks.mjs'
+import { loadModuleData } from '../src/data.mjs'
+import { loadLayoutContext } from '../src/layout/module.mjs'
+import { renderLayout } from '../src/layout/render.mjs'
 
 // The first CI dry run on DoliStore (2026-10-14): what the old layout sent and what CKEditor gave back
 const realRun = readFileSync(new URL('./fixtures/ckeditor-dolistore-2026-10-14.txt', import.meta.url), 'utf8')
@@ -265,7 +268,7 @@ const realSent = realRun.split('\n').filter((line) => line.startsWith('- ')).map
 
 // CKEditor's Advanced Content Filter on DoliStore as seen in that run: styles only on td and table,
 // border shorthand split into longhands, colours written as rgb(), <br />, &nbsp; in empty cells.
-// The border side longhands and the cellpadding/cellspacing attributes are assumed kept (next dry run).
+// It also sorts each style's declarations alphabetically (live page, 2026-10-14).
 const KEPT = {
   td: /^(background-color|border(-(top|right|bottom|left))?(-(color|style|width))?|border-radius|vertical-align|width)$/,
   table: /^(border-collapse|width)$/,
@@ -283,7 +286,7 @@ function simulateDoliStoreEditor(html) {
         }
         return [`${prop}:${value}`]
       }).filter((d) => keep.test(d.split(':')[0]))
-      return decls.length ? `<${tag}${before}${after} style="${rgb(decls.reverse().join('; '))};">` : `<${tag}${before}${after}>`
+      return decls.length ? `<${tag}${before}${after} style="${rgb(decls.sort().join('; '))};">` : `<${tag}${before}${after}>`
     })
     .replace(/<br>/g, '<br />')
     .replace(/<td([^>]*)><\/td>/g, '<td$1>&nbsp;</td>')
@@ -327,55 +330,55 @@ test('the old layout through the simulated editor loses what the real run lost',
   ])
 })
 
-const sent = [
-  '<table cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse">',
-  '<tbody>',
-  '<tr>',
-  '<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">',
-  '<h2>Features</h2>',
-  '</td>',
-  '</tr>',
-  '</tbody>',
-  '</table>',
-  '<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">',
-  '<tbody>',
-  '<tr>',
-  '<td style="background-color:#F1F5FF; border:8px solid #ffffff; border-left:0; vertical-align:top; width:50%"><strong>Lead</strong><br>text</td>',
-  '<td style="border:8px solid #ffffff; border-right:0; vertical-align:top; width:50%"></td>',
-  '</tr>',
-  '</tbody>',
-  '</table>',
-].join('\n')
+// What the layout sends today (layout fixture, en)
+const layoutFixture = new URL('./fixtures/layoutmodule/', import.meta.url)
+const sent = (() => {
+  const dir = fileURLToPath(layoutFixture)
+  const data = loadModuleData(dir)
+  const context = loadLayoutContext(dir, readFileSync(new URL('core/modules/modLayoutDemo.class.php', layoutFixture), 'utf8'))
+  return renderLayout({ lang: 'en', text: data.langs.en, product: data.product, context })
+})()
 
-test('styleDiff: the netlogic layout survives the simulated DoliStore editor', () => {
+test('styleDiff: the netlogic layout survives the simulated DoliStore editor (sorted declarations, rgb colours)', () => {
   const got = simulateDoliStoreEditor(sent)
   assert.match(got, /rgb\(241, 245, 255\)/)
+  assert.match(got, /<td style="background-color:rgb\(241, 245, 255\); border-bottom-color:rgb\(241, 245, 255\); border-bottom-style:solid; border-bottom-width:12px; border-left-color/)
   assert.deepEqual(styleDiff(sent, got), { missing: [], extra: [] })
   assert.equal(formatStyleLoss('description_en', styleDiff(sent, got)), null)
-  // Also when CKEditor writes the side border as one shorthand and reorders the attributes
-  const shorthand = got.replace('border-left-width:6px; border-left-style:solid; border-left-color:rgb(50, 79, 155)', 'border-left: 6px solid rgb(50, 79, 155)')
-    .replace('<table cellpadding="10" cellspacing="0" style="border-collapse:collapse; width:100%;">', '<table style="width: 100%; border-collapse: collapse" cellspacing="0" cellpadding="10">')
+  // Also when CKEditor writes a side border as one shorthand
+  const shorthand = got.replace('border-left-color:rgb(50, 79, 155); border-left-style:solid; border-left-width:6px', 'border-left: 6px solid rgb(50, 79, 155)')
   assert.match(shorthand, /border-left: 6px solid/)
-  assert.match(shorthand, /<table style="width: 100%; border-collapse: collapse" cellspacing="0" cellpadding="10">/)
   assert.deepEqual(styleDiff(sent, shorthand), { missing: [], extra: [] })
 })
 
-test('styleDiff: a stripped style or table attribute is listed', () => {
+test('styleDiff: a stripped or changed style is listed', () => {
   const stripped = simulateDoliStoreEditor(sent)
-    .replace(' cellpadding="12"', '')
-    .replace(/<td style="[^"]*rgb\(50, 79, 155\)[^"]*">/, '<td style="background-color: rgb(241, 245, 255);">')
+    .replace(/<td style="[^"]*border-left-color:rgb\(50, 79, 155\)[^"]*">/, '<td style="background-color: rgb(241, 245, 255);">')
   const diff = styleDiff(sent, stripped)
   assert.deepEqual(diff.missing, [
-    'td {background-color:#f1f5ff; border-left-color:#324f9b; border-left-style:solid; border-left-width:6px; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px}',
-    'table[cellpadding="12"][cellspacing="0"] {border-collapse:collapse; width:100%}',
+    'td {background-color:#f1f5ff; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#324f9b; border-left-style:solid; border-left-width:6px; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px}',
   ])
-  assert.deepEqual(diff.extra, ['td {background-color:#f1f5ff}', 'table[cellspacing="0"] {border-collapse:collapse; width:100%}'])
+  assert.deepEqual(diff.extra, ['td {background-color:#f1f5ff}'])
   const message = formatStyleLoss('description_fr', diff)
-  assert.match(message, /description_fr: DoliStore's editor stripped or changed 2 inline styles or table attributes of the layout/)
-  assert.match(message, /- table\[cellpadding="12"\]\[cellspacing="0"\] \{border-collapse:collapse; width:100%\}/)
+  assert.match(message, /description_fr: DoliStore's editor stripped or changed 1 inline styles or table attributes of the layout/)
   assert.match(message, /got instead: td \{background-color:#f1f5ff\}/)
+})
+
+test('styleDiff: a table attribute that disappears is listed', () => {
+  const diff = styleDiff('<table cellpadding="12" style="width:100%">', '<table style="width:100%">')
+  assert.deepEqual(diff.missing, ['table[cellpadding="12"] {width:100%}'])
 })
 
 test('styleDiff: plain HTML without styles has nothing to check', () => {
   assert.deepEqual(styleDiff('<p><strong>x</strong></p>', '<p><b>x</b></p>'), { missing: [], extra: [] })
+})
+
+test('styleDiff: an attribute the editor adds on its own (cellspacing="0" on every table) is not a loss', () => {
+  // v0.4.2-rc1 dry run, 2026-10-14: the layout sends no table attribute, CKEditor adds cellspacing="0" everywhere
+  const sentHtml = '<table style="width:100%; border-collapse:collapse"><tbody><tr><td style="background-color:#F1F5FF; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">x</td></tr></tbody></table>'
+  const gotHtml = '<table cellspacing="0" style="border-collapse:collapse; width:100%"><tbody><tr><td style="background-color:rgb(241, 245, 255); border-left-color:rgb(50, 79, 155); border-left-style:solid; border-left-width:6px">x</td></tr></tbody></table>'
+  assert.deepEqual(styleDiff(sentHtml, gotHtml), { missing: [], extra: [] })
+  // An attribute we do send is still checked
+  const withPadding = sentHtml.replace('<table style=', '<table cellpadding="12" style=')
+  assert.deepEqual(styleDiff(withPadding, gotHtml).missing, ['table[cellpadding="12"] {border-collapse:collapse; width:100%}'])
 })
