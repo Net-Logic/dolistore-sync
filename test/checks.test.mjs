@@ -328,7 +328,7 @@ test('the old layout through the simulated editor loses what the real run lost',
 })
 
 const sent = [
-  '<table cellpadding="10" style="width:100%; border-collapse:collapse">',
+  '<table cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse">',
   '<tbody>',
   '<tr>',
   '<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">',
@@ -337,7 +337,7 @@ const sent = [
   '</tr>',
   '</tbody>',
   '</table>',
-  '<table cellpadding="12" style="width:100%; border-collapse:collapse">',
+  '<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">',
   '<tbody>',
   '<tr>',
   '<td style="background-color:#F1F5FF; border:8px solid #ffffff; border-left:0; vertical-align:top; width:50%"><strong>Lead</strong><br>text</td>',
@@ -354,9 +354,9 @@ test('styleDiff: the netlogic layout survives the simulated DoliStore editor', (
   assert.equal(formatStyleLoss('description_en', styleDiff(sent, got)), null)
   // Also when CKEditor writes the side border as one shorthand and reorders the attributes
   const shorthand = got.replace('border-left-width:6px; border-left-style:solid; border-left-color:rgb(50, 79, 155)', 'border-left: 6px solid rgb(50, 79, 155)')
-    .replace('<table cellpadding="10" style="border-collapse:collapse; width:100%;">', '<table style="width: 100%; border-collapse: collapse" cellpadding="10">')
+    .replace('<table cellpadding="10" cellspacing="0" style="border-collapse:collapse; width:100%;">', '<table style="width: 100%; border-collapse: collapse" cellspacing="0" cellpadding="10">')
   assert.match(shorthand, /border-left: 6px solid/)
-  assert.match(shorthand, /<table style="width: 100%; border-collapse: collapse" cellpadding="10">/)
+  assert.match(shorthand, /<table style="width: 100%; border-collapse: collapse" cellspacing="0" cellpadding="10">/)
   assert.deepEqual(styleDiff(sent, shorthand), { missing: [], extra: [] })
 })
 
@@ -367,12 +367,12 @@ test('styleDiff: a stripped style or table attribute is listed', () => {
   const diff = styleDiff(sent, stripped)
   assert.deepEqual(diff.missing, [
     'td {background-color:#f1f5ff; border-left-color:#324f9b; border-left-style:solid; border-left-width:6px; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px}',
-    'table[cellpadding="12"] {border-collapse:collapse; width:100%}',
+    'table[cellpadding="12"][cellspacing="0"] {border-collapse:collapse; width:100%}',
   ])
-  assert.deepEqual(diff.extra, ['td {background-color:#f1f5ff}', 'table {border-collapse:collapse; width:100%}'])
+  assert.deepEqual(diff.extra, ['td {background-color:#f1f5ff}', 'table[cellspacing="0"] {border-collapse:collapse; width:100%}'])
   const message = formatStyleLoss('description_fr', diff)
   assert.match(message, /description_fr: DoliStore's editor stripped or changed 2 inline styles or table attributes of the layout/)
-  assert.match(message, /- table\[cellpadding="12"\] \{border-collapse:collapse; width:100%\}/)
+  assert.match(message, /- table\[cellpadding="12"\]\[cellspacing="0"\] \{border-collapse:collapse; width:100%\}/)
   assert.match(message, /got instead: td \{background-color:#f1f5ff\}/)
 })
 

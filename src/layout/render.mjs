@@ -26,9 +26,9 @@ export const STYLES = {
 }
 
 export const TABLE_ATTRIBUTES = {
-  heading: 'cellpadding="10"',
-  grid: 'cellpadding="12"',
-  box: 'cellpadding="12"',
+  heading: 'cellpadding="10" cellspacing="0"',
+  grid: 'cellpadding="12" cellspacing="0"',
+  box: 'cellpadding="12" cellspacing="0"',
 }
 
 const table = (attributes, rows) => `<table ${attributes} style="${STYLES.table}">\n<tbody>\n${rows.join('\n')}\n</tbody>\n</table>`
