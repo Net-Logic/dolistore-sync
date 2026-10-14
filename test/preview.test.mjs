@@ -28,7 +28,7 @@ test('runPreview writes one file per language present, with the generated layout
   const result = runPreview({ moduleDir: join(fixtures, 'layoutmodule'), descriptor: 'core/modules/modLayoutDemo.class.php', outDir: out })
   assert.deepEqual(result.files.map((f) => f.split('/').pop()), ['en.html', 'fr.html'])
   const en = readFileSync(join(out, 'en.html'), 'utf8')
-  assert.match(en, /background-color:#324F9B/)
+  assert.match(en, /border-left-color:#324F9B/)
   assert.match(en, /Required Dolibarr modules: Invoices/)
   assert.ok(!existsSync(join(out, 'de.html')))
 })

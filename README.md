@@ -78,15 +78,17 @@ Generated sections:
 - **Installation**: deploy the zip, enable the module, give the permissions, then the `start` line.
 - **Support and updates**: the `support` e-mail and the `access_days`, then up to 4 links to other Net-Logic modules.
 
-Features are shown as a two-column grid, How it works and Installation as numbered lists. Module text goes through the same safe Markdown renderer as before (bold, italic, code, safe links): raw HTML stays escaped.
+Section headings are light blue table cells with a navy left bar, features a two-column grid of light blue cells, Requirements a light blue box; How it works and Installation are plain numbered lists. Module text goes through the same safe Markdown renderer as before (bold, italic, code, safe links): raw HTML stays escaped.
+
+The markup only uses what DoliStore's CKEditor keeps (seen on the first dry run): styles on `<table>` (width, border-collapse) and `<td>` (background, borders, vertical-align, width), and the `cellpadding` attribute for the inner spacing. Every style on headings, bold text, lists and links, `td` padding and `border-spacing` are stripped by the editor, so they are not used: headings and links take DoliStore's own colours. The gutters are white `td` borders, because the public page's CSS forces `border-collapse:collapse; border-spacing:0` on tables (a `cellspacing` attribute has no effect there).
 
 ### Related modules (`src/catalogue.mjs`)
 
 The "More Net-Logic modules on DoliStore" links come from a catalogue of the Net-Logic products publicly active on DoliStore (DoliStore id, name and tagline per language, categories). The tool picks the modules sharing at least one category with the product, `Modules/Plugins` excepted, by number of shared categories then catalogue order, and fills up to 4 links with the other catalogue entries in catalogue order; the product itself is never listed. `related: [807, 1029]` in `product.yml` overrides the choice and the fill-up (`related: []` shows no link); an id that is not in the catalogue is refused. Add a product to the catalogue when its DoliStore page is live.
 
-### Styles kept by DoliStore's editor
+### Styles and attributes kept by DoliStore's editor
 
-With a layout, the form fill also compares the HTML that DoliStore's CKEditor gives back with the HTML sent: every element's inline style, after normalising case, spacing, declaration order, `rgb()` colours and `0px`. A stripped or changed style stops the run, dry run included, with the list of what was lost in every language. Without a layout only the text is compared, as before.
+With a layout, the form fill also compares the HTML that DoliStore's CKEditor gives back with the HTML sent: every element's inline style and the `border`/`cellpadding`/`cellspacing` attributes of tables, after normalising case, spacing, declaration order, `rgb()` colours, `0px` and the border shorthands (CKEditor writes `border:8px solid #fff` as `border-color`/`border-style`/`border-width`). A stripped or changed style or attribute stops the run, dry run included, with the list of what was lost in every language. Without a layout only the text is compared, as before.
 
 ## Preview without DoliStore
 

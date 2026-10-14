@@ -75,7 +75,7 @@ test('Requirements is left out when there is nothing to list', () => {
 test('Installation: deploy, enable the module name, permissions, then the start line', () => {
   const d = layoutData()
   const en = render(d, 'en')
-  assert.match(en, />Installation<\/h2>\s*<ol[^>]*>\s*<li>Deploy the zip with <strong>Home → Setup → Modules → Deploy an external module<\/strong>\.<\/li>\s*<li>Enable <strong>Layout Demo<\/strong>\.<\/li>\s*<li>Give the permissions to your users\.<\/li>\s*<li>Open a third-party card and click <strong>Send<\/strong>\.<\/li>\s*<\/ol>/)
+  assert.match(en, />Installation<\/h2>\s*<\/td>\s*<\/tr>\s*<\/tbody>\s*<\/table>\s*<ol>\s*<li>Deploy the zip with <strong>Home → Setup → Modules → Deploy an external module<\/strong>\.<\/li>\s*<li>Enable <strong>Layout Demo<\/strong>\.<\/li>\s*<li>Give the permissions to your users\.<\/li>\s*<li>Open a third-party card and click <strong>Send<\/strong>\.<\/li>\s*<\/ol>/)
   assert.match(render(d, 'fr'), /<li>Activez <strong>Démo mise en page<\/strong>\.<\/li>/)
   delete d.langs.en.start
   assert.equal((render(d, 'en').match(/<li>/g) || []).length, 3 + 3 + 3 + 4)
@@ -84,40 +84,56 @@ test('Installation: deploy, enable the module name, permissions, then the start 
 test('Support: e-mail, update days, then the related modules with their localized link', () => {
   const d = layoutData()
   const fr = render(d, 'fr')
-  assert.match(fr, /Support par e-mail à <a href="mailto:dolibarr@netlogic\.fr" style="color:#324F9B">dolibarr@netlogic\.fr<\/a>\. Mises à jour incluses pendant 365 jours\./)
+  assert.match(fr, /Support par e-mail à <a href="mailto:dolibarr@netlogic\.fr">dolibarr@netlogic\.fr<\/a>\. Mises à jour incluses pendant 365 jours\./)
   assert.match(fr, /Autres modules Net-Logic sur DoliStore/)
-  assert.match(fr, /<li><a href="https:\/\/www\.dolistore\.com\/product\.php\?id=792&amp;l=fr" style="color:#FF4939"><strong>Relance facture globale<\/strong><\/a> - Un seul e-mail/)
+  assert.match(fr, /<li><a href="https:\/\/www\.dolistore\.com\/product\.php\?id=792&amp;l=fr"><strong>Relance facture globale<\/strong><\/a> - Un seul e-mail/)
   // 792 shares 2 categories, 807 and 845 one, then the fill-up in catalogue order
   assert.deepEqual([...fr.matchAll(/product\.php\?id=(\d+)/g)].map((m) => m[1]), ['792', '807', '845', '647'])
   const none = layoutData(); none.product.related = []
   assert.doesNotMatch(render(none, 'en'), /More Net-Logic modules/)
 })
 
-test('styles: navy headings, feature cells with white gutters, light blue requirements, red-orange only in the related links', () => {
+const HEADING = '<table cellpadding="10" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">\n<h2>Features</h2>\n</td>\n</tr>\n</tbody>\n</table>'
+const LEFT = 'background-color:#F1F5FF; border:8px solid #ffffff; border-left:0; vertical-align:top; width:50%'
+const RIGHT = 'background-color:#F1F5FF; border:8px solid #ffffff; border-right:0; vertical-align:top; width:50%'
+const EMPTY = '<td style="border:8px solid #ffffff; border-right:0; vertical-align:top; width:50%"></td>'
+
+test('styles: light blue heading cells with a navy left bar, a feature grid with white gutters, a light blue requirements box', () => {
   const d = layoutData()
   const en = render(d, 'en')
-  assert.match(en, /<h2 style="background-color:#324F9B; color:#ffffff; padding:8px 14px; border-radius:5px; margin:24px 0 12px 0">Features<\/h2>/)
-  assert.doesNotMatch(en, /font-family|font-size/)
-  assert.match(en, /<p><strong style="color:#324F9B">Layout Demo<\/strong> sends one email with everything\.<\/p>/)
-  assert.match(en, /<table style="width:100%; border-collapse:collapse">/)
-  assert.match(en, /<td style="width:50%; background-color:#F1F5FF; vertical-align:top; padding:12px 14px; border:8px solid #ffffff; border-left:0"><strong style="color:#324F9B">First feature<\/strong><br>the first text\.<\/td>/)
-  assert.match(en, /the second text with <code>code<\/code>\./)
+  assert.ok(en.includes(HEADING))
+  assert.match(en, /<p><strong>Layout Demo<\/strong> sends one email with everything\.<\/p>/)
+  assert.ok(en.includes(`<table cellpadding="12" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="${LEFT}"><strong>First feature</strong><br>the first text.</td>\n<td style="${RIGHT}"><strong>Second feature</strong><br>the second text with <code>code</code>.</td>\n</tr>`))
   // 3 features: the 4th cell is empty, without background
-  assert.match(en, /<td style="width:50%; border:8px solid #ffffff; border-right:0"><\/td>/)
-  assert.match(en, /Second feature<\/strong>/)
-  assert.match(en, /border:8px solid #ffffff; border-right:0"><strong style="color:#324F9B">Second feature/)
-  assert.equal((en.match(/background-color:#F1F5FF; vertical-align:top/g) || []).length, 3)
-  assert.match(en, /background-color:#F1F5FF; padding:12px 18px; border-radius:5px/)
-  assert.match(en, />How it works<\/h2>\s*<ol[^>]*>\s*<li>Open the card\.<\/li>/)
-  const redOrange = en.match(/#FF4939/g) || []
-  assert.equal(redOrange.length, 4)
-  assert.equal((en.match(/<a [^>]*style="color:#FF4939"/g) || []).length, 4)
+  assert.ok(en.includes(`<td style="${LEFT}"><strong>Third feature</strong><br>the third text.</td>\n${EMPTY}\n</tr>`))
+  assert.match(en, />Requirements<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<table cellpadding="12" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border:8px solid #ffffff; border-left:0; border-right:0">\n<ul>\n<li>Interface languages/)
+  assert.match(en, />How it works<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<ol>\n<li>Open the card\.<\/li>/)
+})
+
+test('only the styles DoliStore\'s editor keeps: on table and td, from its allowed list', () => {
+  const en = render(layoutData(), 'en')
+  const allowed = {
+    table: ['width', 'border-collapse'],
+    td: ['background-color', 'border', 'border-left', 'border-right', 'border-top-color', 'border-top-style', 'border-top-width',
+      'border-bottom-color', 'border-bottom-style', 'border-bottom-width',
+      'border-left-color', 'border-left-style', 'border-left-width', 'vertical-align', 'width'],
+  }
+  const styled = [...en.matchAll(/<(\w+)[^>]*\sstyle="([^"]*)"/g)]
+  assert.ok(styled.length > 10)
+  for (const [, tag, style] of styled) {
+    assert.ok(Object.hasOwn(allowed, tag), `style on <${tag}>`)
+    for (const decl of style.split(';')) {
+      assert.ok(allowed[tag].includes(decl.split(':')[0].trim()), `${tag}: ${decl}`)
+    }
+  }
+  assert.doesNotMatch(en, /#FF4939|[;"\s]color\s*:|[;"\s]padding\s*:|margin|border-spacing|border-radius|font-|cellspacing/i)
+  assert.doesNotMatch(en, /<(h2|ol|ul|li|strong|a|p|span)\s[^>]*style=/)
 })
 
 test('an even number of features leaves no empty cell', () => {
   const d = layoutData()
   d.langs.en.long = d.langs.en.long.replace('- **Third feature**: the third text.\n', '')
-  assert.doesNotMatch(render(d, 'en'), /<td style="width:50%; border:8px solid #ffffff; border-right:0"><\/td>/)
+  assert.ok(!render(d, 'en').includes(EMPTY))
 })
 
 test('module text never injects HTML: a script tag in a feature stays text, unsafe links are neutralised', () => {

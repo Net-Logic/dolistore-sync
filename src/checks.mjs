@@ -172,15 +172,35 @@ export function parseProductState(rowText) {
 
 const hex2 = (n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0')
 
+const BORDER_WIDTH = /^(?:0|\d*\.?\d+(?:px|em|rem|pt)|thin|medium|thick)$/
+const BORDER_STYLE = /^(?:none|hidden|dotted|dashed|solid|double|groove|ridge|inset|outset)$/
+
+// CKEditor writes "border:8px solid #fff" as border-width/border-style/border-color and may do the same
+// for one side: expand every border shorthand so both forms compare equal
+function expandBorder(prop, value) {
+  const match = prop.match(/^border(-(?:top|right|bottom|left))?$/)
+  if (!match) {
+    return [`${prop}:${value}`]
+  }
+  const side = match[1] || ''
+  return value.split(' ').map((token) => {
+    if (BORDER_WIDTH.test(token)) {
+      return `border${side}-width:${token}`
+    }
+    return BORDER_STYLE.test(token) ? `border${side}-style:${token}` : `border${side}-color:${token}`
+  })
+}
+
 // One CSS declaration list in a comparable form: lower case, single spaces, colours as #rrggbb,
-// 0px as 0, declarations sorted (CKEditor reorders and respaces them, and writes rgb() colours)
+// 0px as 0, border shorthands expanded, declarations sorted (CKEditor reorders and respaces them,
+// writes rgb() colours and splits the border shorthand)
 export function normalizeStyle(style) {
   return String(style ?? '')
     .split(';')
-    .map((decl) => {
+    .flatMap((decl) => {
       const at = decl.indexOf(':')
       if (at === -1) {
-        return ''
+        return []
       }
       const prop = decl.slice(0, at).trim().toLowerCase()
       const value = decl.slice(at + 1).trim().toLowerCase()
@@ -188,30 +208,35 @@ export function normalizeStyle(style) {
         .replace(/#([0-9a-f])([0-9a-f])([0-9a-f])\b/g, '#$1$1$2$2$3$3')
         .replace(/(^|[\s(,])0px\b/g, '$10')
         .replace(/\s+/g, ' ')
-      return prop && value ? `${prop}:${value}` : ''
+      return prop && value ? expandBorder(prop, value) : []
     })
-    .filter(Boolean)
     .sort()
     .join('; ')
 }
 
-// (tag, normalised style) of every element carrying a style attribute, in document order
+// Table attributes the layout uses for spacing (CKEditor's table dialog exposes them): checked like styles
+const CHECKED_ATTRIBUTES = ['border', 'cellpadding', 'cellspacing']
+
+const attribute = (attrs, name) => {
+  const match = attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i'))
+  return match ? decode(match[1] ?? match[2] ?? match[3]).trim().toLowerCase() : null
+}
+
+// tag[attributes] {normalised style} of every element carrying a style or a checked attribute, in document order
 function styledTags(html) {
   const pairs = []
   for (const match of String(html ?? '').matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
-    const style = match[2].match(/\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/i)
-    if (style) {
-      const normalized = normalizeStyle(decode(style[1] ?? style[2]))
-      if (normalized) {
-        pairs.push(`${match[1].toLowerCase()} {${normalized}}`)
-      }
+    const attrs = CHECKED_ATTRIBUTES.map((name) => [name, attribute(match[2], name)]).filter(([, value]) => value !== null)
+    const style = normalizeStyle(attribute(match[2], 'style') ?? '')
+    if (style || attrs.length > 0) {
+      pairs.push(`${match[1].toLowerCase()}${attrs.map(([name, value]) => `[${name}="${value}"]`).join('')} {${style}}`)
     }
   }
   return pairs
 }
 
-// Styles of the sent HTML that the editor's HTML no longer holds (missing), and the styled elements
-// of the editor's HTML that match nothing sent (extra, shown as context). Text is checked elsewhere.
+// Styles and table attributes of the sent HTML that the editor's HTML no longer holds (missing), and the
+// styled elements of the editor's HTML that match nothing sent (extra, shown as context). Text is checked elsewhere.
 export function styleDiff(expectedHtml, gotHtml) {
   const got = styledTags(gotHtml)
   const missing = []
@@ -226,12 +251,12 @@ export function styleDiff(expectedHtml, gotHtml) {
   return { missing, extra: missing.length > 0 ? got : [] }
 }
 
-// null when nothing is lost, else a message listing every stripped or changed style
+// null when nothing is lost, else a message listing every stripped or changed style or attribute
 export function formatStyleLoss(name, diff) {
   if (diff.missing.length === 0) {
     return null
   }
-  const lines = [`${name}: DoliStore's editor stripped or changed ${diff.missing.length} inline styles of the layout:`]
+  const lines = [`${name}: DoliStore's editor stripped or changed ${diff.missing.length} inline styles or table attributes of the layout:`]
   lines.push(...diff.missing.map((pair) => `- ${pair}`))
   if (diff.extra.length > 0) {
     lines.push(`got instead: ${diff.extra.join(', ')}`)
