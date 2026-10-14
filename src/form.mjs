@@ -1,5 +1,6 @@
 import { CATEGORIES, DOLIBARR_VERSIONS, LANGS } from './constants.mjs'
 import { toHtml } from './markdown.mjs'
+import { renderLayout } from './layout/render.mjs'
 import { toStoreVersion } from './version.mjs'
 
 // The price is never sent: it stays managed on DoliStore (the form keeps its prefilled value)
@@ -20,7 +21,10 @@ export function buildFormValues(data, version) {
     }
     text[`name_${lang}`] = l.title
     text[`short_description_${lang}`] = l.short
-    text[`description_${lang}`] = toHtml(l.long)
+    // data.layout (langs/ folders, depends) is loaded by the caller when product.yml has a layout
+    text[`description_${lang}`] = p.layout === 'netlogic'
+      ? renderLayout({ lang, text: l, product: p, context: data.layout })
+      : toHtml(l.long)
   }
   return {
     text,

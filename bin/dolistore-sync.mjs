@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import { maskSecrets } from '../src/mask.mjs'
 import { isDryRun } from '../src/checks.mjs'
 import { run, runCreate } from '../src/run.mjs'
+import { runPreview } from '../src/preview.mjs'
 
 const { values } = parseArgs({
   options: {
@@ -16,14 +17,27 @@ const { values } = parseArgs({
     'dry-run': { type: 'boolean', default: false },
     // Creates a NEW product (product.yml without id, with a create block); refuses an existing one
     create: { type: 'boolean', default: false },
+    // Writes <dir>/<lang>.html (the description in a DoliStore-like page): no zip, no login, no network
+    preview: { type: 'string' },
   },
 })
 
-for (const key of ['module', 'descriptor', 'zip']) {
+for (const key of values.preview ? ['module', 'descriptor'] : ['module', 'descriptor', 'zip']) {
   if (!values[key]) {
     console.error(`Missing --${key}`)
     process.exit(2)
   }
+}
+
+if (values.preview) {
+  try {
+    const { files } = runPreview({ moduleDir: resolve(values.module), descriptor: values.descriptor, outDir: resolve(values.preview) })
+    console.log(`Preview written: ${files.join(', ')}`)
+  } catch (error) {
+    console.error(error.message)
+    process.exit(1)
+  }
+  process.exit(0)
 }
 
 try {

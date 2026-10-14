@@ -39,3 +39,55 @@ A dry run (default) fills the form and stops. A real run (`dry-run: 'false'`) up
 ## Cover image
 
 By default the cover of the product is never touched. With `cover: sync` in `product.yml` and a file `dolistore/cover.png` (or `.jpg`), a run compares the bytes of the current cover with the file and uploads it with the form only when they differ (a second run changes nothing). A dry run only reports; a real run checks afterwards that DoliStore now shows the file.
+
+## Description layout (`layout: netlogic`)
+
+Without a `layout` key the long description is the Markdown body rendered as is. With `layout: netlogic` in `product.yml` the tool builds a styled description (netlogic.fr palette, inline styles only, no font change) and writes the repetitive sections itself, in each language. Any other `layout` value is refused.
+
+The language files then follow a fixed shape:
+
+```markdown
+---
+title: "Module name - what it does"   # the module name is the part before " - "
+short: "At most 125 characters."
+start: "Open a third-party card and click **Send reminders**."   # optional, last installation step
+needs:                                                          # optional, extra prerequisites
+  - "An online payment module, only for the payment link"
+---
+**Module name** does this and that (1 or 2 intro paragraphs, the first one holds the module name in bold).
+
+## Features
+
+- **Lead-in**: text of the feature.
+- **Other lead-in**: text.
+
+## How it works
+
+1. First step.
+2. Second step.
+```
+
+- The Features heading and the optional How it works heading are matched per language, without case or accents: Features / Fonctionnalités / Funktionen / Funzionalità / Funcionalidades, How it works / Fonctionnement / So funktioniert es / Come funziona / Cómo funciona (English is accepted in every file).
+- Every language must have the same number of features and the same How it works (same number of steps).
+- Requirements, Installation and Support sections are generated: writing one by hand is refused, and so is any other section.
+- The text must not mention the Dolibarr or PHP versions (`V20`, `Dolibarr 21`, `PHP 8.1`...): DoliStore's info box shows them.
+
+Generated sections:
+
+- **Requirements**: interface languages from the module's `langs/` folder names, required Dolibarr modules from `$this->depends` of the descriptor (`[...]` or `array(...)`), then the `needs` lines. The section is left out when there is nothing to list.
+- **Installation**: deploy the zip, enable the module, give the permissions, then the `start` line.
+- **Support and updates**: the `support` e-mail and the `access_days`, then up to 4 links to other Net-Logic modules.
+
+Features are shown as a two-column grid, How it works and Installation as numbered lists. Module text goes through the same safe Markdown renderer as before (bold, italic, code, safe links): raw HTML stays escaped.
+
+### Related modules (`src/catalogue.mjs`)
+
+The "More Net-Logic modules on DoliStore" links come from a catalogue of the published Net-Logic modules (DoliStore id, name and tagline per language, categories). The tool picks the modules sharing at least one category with the product, `Modules/Plugins` excepted, by number of shared categories then catalogue order, at most 4, the product itself excluded. `related: [807, 1029]` in `product.yml` overrides the choice; an id that is not in the catalogue is refused. Add a module to the catalogue when it gets its DoliStore id.
+
+## Preview without DoliStore
+
+```bash
+node bin/dolistore-sync.mjs --module path/to/module --descriptor core/modules/modMyModule.class.php --preview out/preview
+```
+
+`--preview <dir>` checks the data like a run, then writes `<dir>/<lang>.html` for each language file: the description inside a page that looks like a DoliStore product page (`div.rte.fulldescription`, 870 px wide). No zip, no login, no browser, no network. It works with and without a layout.

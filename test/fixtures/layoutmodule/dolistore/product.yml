@@ -1,0 +1,8 @@
+id: 4242
+dolibarr: { min: V20, max: V24 }
+php: { min: "7.4", max: "8.5" }
+access_days: 365
+support: dolibarr@netlogic.fr
+categories: [ "Modules/Plugins", "Comptabilité", "CRM - Gestion relation client" ]
+keywords: [ layout ]
+layout: netlogic

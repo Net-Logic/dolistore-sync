@@ -2,6 +2,7 @@ import {
   CATEGORIES, DOLIBARR_VERSIONS, MAX_CATEGORIES, MAX_SCREENSHOTS, MAX_ZIP_BYTES, dolibarrNumber,
 } from './constants.mjs'
 import { COVER_MODES } from './cover.mjs'
+import { LAYOUTS, validateLayout } from './layout/checks.mjs'
 import { SCREENSHOT_MODES } from './screenshots.mjs'
 import { toStoreVersion } from './version.mjs'
 
@@ -132,6 +133,15 @@ export function validate(data, { version, zipBytes, create = false }) {
       errors.push(`product.yml: "cover" must be one of ${COVER_MODES.join(', ')}, got "${p.cover}"`)
     } else if (p.cover === 'sync' && !data.cover) {
       errors.push('product.yml: cover: sync needs dolistore/cover.png (or .jpg)')
+    }
+  }
+
+  // Opt-in description layout: without the key nothing below runs
+  if (!isBlank(p.layout)) {
+    if (!LAYOUTS.includes(p.layout)) {
+      errors.push(`product.yml: "layout" must be one of ${LAYOUTS.join(', ')}, got "${p.layout}"`)
+    } else {
+      errors.push(...validateLayout(data))
     }
   }
 
