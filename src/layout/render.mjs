@@ -8,21 +8,25 @@ import { moduleName, parseLayoutBody } from './parse.mjs'
 // only; h2/strong/ol/ul/a styles, td padding and border-spacing are stripped, so headings, lists and
 // links stay plain. Inner spacing comes from the cellpadding attribute of <table>. Gutters cannot use
 // cellspacing: the public page's CSS sets "table { border-collapse:collapse; border-spacing:0 }", which
-// beats the attribute. They are white td borders in a collapsed table instead (the "border:8px solid"
-// shorthand comes back from CKEditor as border-color/style/width, border-left:0 kept as is).
+// beats the attribute. They are white td borders in a collapsed table instead.
 const NAVY = '#324F9B'
 const LIGHT_BLUE = '#F1F5FF'
-const GUTTER = 'border:8px solid #ffffff'
+// Every border is written per side with longhands only: DoliStore's CKEditor sorts the style
+// properties alphabetically, so a shorthand followed by an override ("border:8px solid #fff;
+// border-left:0") comes back as "border-color; border-left:0; border-style; border-width" and the
+// left edge turns into an 8px black bar on the public page.
+const side = (name, width) => `border-${name}-color:#ffffff; border-${name}-style:solid; border-${name}-width:${width}`
+const gutter = (left, right) => [side('top', '8px'), side('bottom', '8px'), side('left', left), side('right', right)].join('; ')
 
 export const STYLES = {
   table: 'width:100%; border-collapse:collapse',
   // White top and bottom borders: room around the heading (tables have no margin); navy left bar
   heading: `background-color:${LIGHT_BLUE}; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:${NAVY}; border-left-style:solid; border-left-width:6px`,
   // No outer side border, so the cells line up with the headings
-  cellLeft: `background-color:${LIGHT_BLUE}; ${GUTTER}; border-left:0; vertical-align:top; width:50%`,
-  cellRight: `background-color:${LIGHT_BLUE}; ${GUTTER}; border-right:0; vertical-align:top; width:50%`,
-  emptyCell: `${GUTTER}; border-right:0; vertical-align:top; width:50%`,
-  box: `background-color:${LIGHT_BLUE}; ${GUTTER}; border-left:0; border-right:0`,
+  cellLeft: `background-color:${LIGHT_BLUE}; ${gutter('0px', '8px')}; vertical-align:top; width:50%`,
+  cellRight: `background-color:${LIGHT_BLUE}; ${gutter('8px', '0px')}; vertical-align:top; width:50%`,
+  emptyCell: `${gutter('8px', '0px')}; vertical-align:top; width:50%`,
+  box: `background-color:${LIGHT_BLUE}; ${gutter('0px', '0px')}`,
 }
 
 export const TABLE_ATTRIBUTES = {

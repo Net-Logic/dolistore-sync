@@ -94,9 +94,9 @@ test('Support: e-mail, update days, then the related modules with their localize
 })
 
 const HEADING = '<table cellpadding="10" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#324F9B; border-left-style:solid; border-left-width:6px">\n<h2>Features</h2>\n</td>\n</tr>\n</tbody>\n</table>'
-const LEFT = 'background-color:#F1F5FF; border:8px solid #ffffff; border-left:0; vertical-align:top; width:50%'
-const RIGHT = 'background-color:#F1F5FF; border:8px solid #ffffff; border-right:0; vertical-align:top; width:50%'
-const EMPTY = '<td style="border:8px solid #ffffff; border-right:0; vertical-align:top; width:50%"></td>'
+const LEFT = 'background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:0px; border-right-color:#ffffff; border-right-style:solid; border-right-width:8px; vertical-align:top; width:50%'
+const RIGHT = 'background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:8px; border-right-color:#ffffff; border-right-style:solid; border-right-width:0px; vertical-align:top; width:50%'
+const EMPTY = '<td style="border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:8px; border-right-color:#ffffff; border-right-style:solid; border-right-width:0px; vertical-align:top; width:50%"></td>'
 
 test('styles: light blue heading cells with a navy left bar, a feature grid with white gutters, a light blue requirements box', () => {
   const d = layoutData()
@@ -106,7 +106,7 @@ test('styles: light blue heading cells with a navy left bar, a feature grid with
   assert.ok(en.includes(`<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="${LEFT}"><strong>First feature</strong><br>the first text.</td>\n<td style="${RIGHT}"><strong>Second feature</strong><br>the second text with <code>code</code>.</td>\n</tr>`))
   // 3 features: the 4th cell is empty, without background
   assert.ok(en.includes(`<td style="${LEFT}"><strong>Third feature</strong><br>the third text.</td>\n${EMPTY}\n</tr>`))
-  assert.match(en, />Requirements<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border:8px solid #ffffff; border-left:0; border-right:0">\n<ul>\n<li>Interface languages/)
+  assert.match(en, />Requirements<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<table cellpadding="12" cellspacing="0" style="width:100%; border-collapse:collapse">\n<tbody>\n<tr>\n<td style="background-color:#F1F5FF; border-top-color:#ffffff; border-top-style:solid; border-top-width:8px; border-bottom-color:#ffffff; border-bottom-style:solid; border-bottom-width:8px; border-left-color:#ffffff; border-left-style:solid; border-left-width:0px; border-right-color:#ffffff; border-right-style:solid; border-right-width:0px">\n<ul>\n<li>Interface languages/)
   assert.match(en, />How it works<\/h2>\n<\/td>\n<\/tr>\n<\/tbody>\n<\/table>\n<ol>\n<li>Open the card\.<\/li>/)
 })
 
@@ -114,7 +114,7 @@ test('only the styles DoliStore\'s editor keeps: on table and td, from its allow
   const en = render(layoutData(), 'en')
   const allowed = {
     table: ['width', 'border-collapse'],
-    td: ['background-color', 'border', 'border-left', 'border-right', 'border-top-color', 'border-top-style', 'border-top-width',
+    td: ['background-color', 'border-right-color', 'border-right-style', 'border-right-width', 'border-top-color', 'border-top-style', 'border-top-width',
       'border-bottom-color', 'border-bottom-style', 'border-bottom-width',
       'border-left-color', 'border-left-style', 'border-left-width', 'vertical-align', 'width'],
   }
@@ -151,4 +151,44 @@ test('module text never injects HTML: a script tag in a feature stays text, unsa
   assert.match(en, /&lt;b&gt;bold&lt;\/b&gt;/)
   assert.match(en, /&lt;iframe/)
   assert.match(en, /Enable <strong>Layout &lt;i&gt;Demo&lt;\/i&gt;<\/strong>/)
+})
+
+// DoliStore's CKEditor sorts the declarations of a style alphabetically: the borders of every
+// generated cell must mean the same thing in both orders (a shorthand followed by a side override
+// turned the outer edges into black bars on the public page, 2026-10-14).
+function resolveBorders(style) {
+  const sides = ['top', 'right', 'bottom', 'left']
+  const state = Object.fromEntries(sides.map((s) => [s, { color: 'currentcolor', style: 'none', width: 'medium' }]))
+  for (const decl of style.split(';').map((d) => d.trim()).filter(Boolean)) {
+    const [prop, ...rest] = decl.split(':')
+    const value = rest.join(':').trim()
+    const m = prop.trim().match(/^border(?:-(top|right|bottom|left))?(?:-(color|style|width))?$/)
+    if (!m) continue
+    const targets = m[1] ? [m[1]] : sides
+    for (const t of targets) {
+      if (m[2]) {
+        state[t][m[2]] = value
+      } else {
+        // shorthand: unspecified parts reset to their initial values
+        state[t] = { color: 'currentcolor', style: 'none', width: 'medium' }
+        for (const part of value.split(/\s+/)) {
+          if (/^(solid|none|dashed|dotted|double)$/.test(part)) state[t].style = part
+          else if (/^(\d+(px)?|0|thin|medium|thick)$/.test(part)) state[t].width = part
+          else state[t].color = part
+        }
+      }
+    }
+  }
+  return JSON.stringify(state)
+}
+
+test('every generated cell keeps its borders when DoliStore sorts the declarations alphabetically', () => {
+  const html = render(layoutData(), 'en')
+  const styles = [...html.matchAll(/<td style="([^"]*)"/g)].map((m) => m[1])
+  assert.ok(styles.length > 0)
+  for (const style of styles) {
+    const sorted = style.split(';').map((d) => d.trim()).filter(Boolean).sort().join('; ')
+    assert.equal(resolveBorders(sorted), resolveBorders(style), `borders change once sorted: ${style}`)
+    assert.doesNotMatch(style, /(^|;\s*)border(-(top|right|bottom|left))?\s*:/, `no border shorthand: ${style}`)
+  }
 })
