@@ -78,7 +78,7 @@ test('Installation: deploy, enable the module name, permissions, then the start 
   assert.match(en, />Installation<\/h2>\s*<ol[^>]*>\s*<li>Deploy the zip with <strong>Home → Setup → Modules → Deploy an external module<\/strong>\.<\/li>\s*<li>Enable <strong>Layout Demo<\/strong>\.<\/li>\s*<li>Give the permissions to your users\.<\/li>\s*<li>Open a third-party card and click <strong>Send<\/strong>\.<\/li>\s*<\/ol>/)
   assert.match(render(d, 'fr'), /<li>Activez <strong>Démo mise en page<\/strong>\.<\/li>/)
   delete d.langs.en.start
-  assert.equal((render(d, 'en').match(/<li>/g) || []).length, 3 + 3 + 3 + 2)
+  assert.equal((render(d, 'en').match(/<li>/g) || []).length, 3 + 3 + 3 + 4)
 })
 
 test('Support: e-mail, update days, then the related modules with their localized link', () => {
@@ -87,8 +87,9 @@ test('Support: e-mail, update days, then the related modules with their localize
   assert.match(fr, /Support par e-mail à <a href="mailto:dolibarr@netlogic\.fr" style="color:#324F9B">dolibarr@netlogic\.fr<\/a>\. Mises à jour incluses pendant 365 jours\./)
   assert.match(fr, /Autres modules Net-Logic sur DoliStore/)
   assert.match(fr, /<li><a href="https:\/\/www\.dolistore\.com\/product\.php\?id=792&amp;l=fr" style="color:#FF4939"><strong>Relance facture globale<\/strong><\/a> - Un seul e-mail/)
-  assert.match(fr, /id=807&amp;l=fr/)
-  const none = layoutData(); none.product.categories = ['Modules/Plugins']
+  // 792 shares 2 categories, 807 and 845 one, then the fill-up in catalogue order
+  assert.deepEqual([...fr.matchAll(/product\.php\?id=(\d+)/g)].map((m) => m[1]), ['792', '807', '845', '647'])
+  const none = layoutData(); none.product.related = []
   assert.doesNotMatch(render(none, 'en'), /More Net-Logic modules/)
 })
 
@@ -109,8 +110,8 @@ test('styles: navy headings, feature cells with white gutters, light blue requir
   assert.match(en, /background-color:#F1F5FF; padding:12px 18px; border-radius:5px/)
   assert.match(en, />How it works<\/h2>\s*<ol[^>]*>\s*<li>Open the card\.<\/li>/)
   const redOrange = en.match(/#FF4939/g) || []
-  assert.equal(redOrange.length, 2)
-  assert.equal((en.match(/<a [^>]*style="color:#FF4939"/g) || []).length, 2)
+  assert.equal(redOrange.length, 4)
+  assert.equal((en.match(/<a [^>]*style="color:#FF4939"/g) || []).length, 4)
 })
 
 test('an even number of features leaves no empty cell', () => {
