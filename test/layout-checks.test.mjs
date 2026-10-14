@@ -65,8 +65,8 @@ test('check 4: no hand-written Requirements, Installation or Support section', (
   assert.match(errors, /dolistore\/fr\.md: remove the hand-written "Support" section/)
 })
 
-test('check 5: no Dolibarr or PHP version in the body, start or needs', () => {
-  for (const mention of ['V20', 'v24', 'Dolibarr 20', 'Dolibarr >= 21', 'PHP 7.4', 'php 8']) {
+test('check 5: no Dolibarr range, V20 token or PHP version in the body, start or needs', () => {
+  for (const mention of ['V20', 'v24', 'Dolibarr 20 to 24', 'Dolibarr 20-24', 'Dolibarr 20 à 24', 'Dolibarr >= 21', 'PHP 7.4', 'php 8']) {
     const d = swapBody(data(), 'en', 'the first text.', `works with ${mention}.`)
     assert.match(errorsOf(d), new RegExp(`dolistore/en\\.md: remove the version mention "${mention.replace(/[.>=]/g, '\\$&')}"`), mention)
   }
@@ -74,6 +74,9 @@ test('check 5: no Dolibarr or PHP version in the body, start or needs', () => {
   assert.match(errorsOf(needs), /dolistore\/fr\.md: remove the version mention "PHP 8\.1"/)
   const fine = swapBody(data(), 'en', 'the first text.', 'protected by reCAPTCHA v3 in 2 clicks.')
   assert.deepEqual(validate(fine, ctx), [])
+  // A Dolibarr version used as a condition is a feature detail, not a compatibility range
+  const condition = swapBody(data(), 'en', 'the first text.', 'from Dolibarr 23, also the public forms; on Dolibarr 21 and later, a captcha handler.')
+  assert.deepEqual(validate(condition, ctx), [])
 })
 
 test('check 6: short at most 125 characters, only when the layout is on', () => {

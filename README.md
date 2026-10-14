@@ -70,7 +70,7 @@ needs:                                                          # optional, extr
 - The Features heading and the optional How it works heading are matched per language, without case or accents: Features / Fonctionnalités / Funktionen / Funzionalità / Funcionalidades, How it works / Fonctionnement / So funktioniert es / Come funziona / Cómo funciona (English is accepted in every file).
 - Every language must have the same number of features and the same How it works (same number of steps).
 - Requirements, Installation and Support sections are generated: writing one by hand is refused, and so is any other section.
-- The text must not mention the Dolibarr or PHP versions (`V20`, `Dolibarr 21`, `PHP 8.1`...): DoliStore's info box shows them.
+- The text must not repeat the compatibility ranges (`V20`, `Dolibarr 20 to 24`, `Dolibarr >= 21`, `PHP 8.1`...): DoliStore's info box shows them. A Dolibarr version used as a condition of a feature stays allowed (`from Dolibarr 23`, `Dolibarr 21 and later`).
 
 Generated sections:
 

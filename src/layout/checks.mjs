@@ -6,10 +6,13 @@ export const LAYOUTS = ['netlogic']
 
 export const MAX_SHORT = 125
 
-// DoliStore's info box already shows the Dolibarr and PHP ranges: no version in the text
+// DoliStore's info box already shows the Dolibarr and PHP ranges: no range, no "V20" token and no PHP
+// version in the text. A Dolibarr version used as a condition stays allowed ("from Dolibarr 23",
+// "Dolibarr 21 and later"): some features only exist on some versions.
 const VERSION_MENTIONS = [
   /\bv\d{2}\b/gi,
-  /\bDolibarr\s*(?:[<>≤≥=]+\s*)?v?\d+(?:\.\d+)*/gi,
+  /\bDolibarr\s*v?\d+(?:\.\d+)*\s*(?:-|–|—|to|à|a|al|au|bis|jusqu'(?:à|au))\s*v?\d+(?:\.\d+)*/gi,
+  /\bDolibarr\s*[<>≤≥=]+\s*v?\d+(?:\.\d+)*/gi,
   /\bPHP\s*(?:[<>≤≥=]+\s*)?v?[5-9](?:\.\d+)*\b/gi,
 ]
 
