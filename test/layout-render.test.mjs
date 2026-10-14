@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadModuleData } from '../src/data.mjs'
 import { buildFormValues } from '../src/form.mjs'
-import { loadLayoutContext, readDepends, readInterfaceLangs } from '../src/layout/module.mjs'
+import { loadLayoutContext, readDepends, readHasRights, readInterfaceLangs } from '../src/layout/module.mjs'
 import { renderLayout } from '../src/layout/render.mjs'
 
 const fixtures = join(fileURLToPath(new URL('.', import.meta.url)), 'fixtures')
@@ -214,4 +214,17 @@ test('every generated cell keeps its borders when DoliStore sorts the declaratio
     assert.equal(resolveBorders(sorted), resolveBorders(style), `borders change once sorted: ${style}`)
     assert.doesNotMatch(style, /(^|;\s*)border(-(top|right|bottom|left))?\s*:/, `no border shorthand: ${style}`)
   }
+})
+
+test('the permissions step of the installation is left out when the descriptor declares no permission', () => {
+  assert.equal(readHasRights("\t\t$this->rights[$r][0] = 1;"), true)
+  assert.equal(readHasRights("\t\t// $this->rights[$r][0] = 1;\n\t\t$this->rights_class = 'prune';"), false)
+  const d = layoutData()
+  d.layout.hasRights = true
+  assert.match(render(d, 'en'), /Give the permissions to your users\./)
+  d.layout.hasRights = false
+  const en = render(d, 'en')
+  assert.doesNotMatch(en, /Give the permissions/)
+  assert.match(en, /<li>Enable <strong>[^<]+<\/strong>\.<\/li>/)
+  assert.doesNotMatch(render(d, 'fr'), /permissions à vos utilisateurs/)
 })

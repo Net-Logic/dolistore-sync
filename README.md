@@ -75,7 +75,7 @@ needs:                                                          # optional, extr
 Generated sections:
 
 - **Requirements**: interface languages from the module's `langs/` folder names, required Dolibarr modules from `$this->depends` of the descriptor (`[...]` or `array(...)`), then the `needs` lines. The section is left out when there is nothing to list.
-- **Installation**: deploy the zip, enable the module, give the permissions, then the `start` line.
+- **Installation**: deploy the zip, enable the module, give the permissions (left out when the descriptor declares no `$this->rights`), then the `start` line.
 - **Support and updates**: the `support` e-mail and the `access_days`, then up to 4 links to other Net-Logic modules.
 
 Section headings are light blue table cells with a navy left bar, features a two-column grid of light blue cells, Requirements a light blue box; How it works and Installation are plain numbered lists. Module text goes through the same safe Markdown renderer as before (bold, italic, code, safe links): raw HTML stays escaped.

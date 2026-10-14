@@ -10,5 +10,7 @@ class modLayoutDemo
 			'modSociete', 'modFooBar'
 		);
 		$this->langfiles = array("layoutdemo@layoutdemo");
+		$this->rights[0][0] = 990001;
+		$this->rights[0][4] = 'send';
 	}
 }
