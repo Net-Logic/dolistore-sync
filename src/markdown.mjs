@@ -1,6 +1,6 @@
 import { Marked } from 'marked'
 
-const escapeHtml = (text) =>
+export const escapeHtml = (text) =>
   String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 // https, http, mailto, a single-slash absolute path or a fragment; anything else becomes '#'
@@ -53,4 +53,10 @@ const marked = new Marked({
 
 export function toHtml(markdown) {
   return marked.parse(markdown, { async: false })
+}
+
+// One line of module text (a feature, a step, a needs line): bold, italic, code and safe links only,
+// raw HTML escaped like in toHtml
+export function toInlineHtml(markdown) {
+  return marked.parseInline(String(markdown ?? ''), { async: false }).trim()
 }

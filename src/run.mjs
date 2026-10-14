@@ -11,10 +11,12 @@ import {
 import { SUBMITTED_PREFIX, installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
 import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
 import { coverMode, planCover } from './cover.mjs'
+import { loadLayoutContext } from './layout/module.mjs'
 
 export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
-  const version = readModuleVersion(readFileSync(join(moduleDir, descriptor), 'utf8'))
+  const descriptorSource = readFileSync(join(moduleDir, descriptor), 'utf8')
+  const version = readModuleVersion(descriptorSource)
   if (!existsSync(zipPath)) {
     throw new Error(`zip not found: ${zipPath}`)
   }
@@ -25,6 +27,9 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
   }
   if (!email || !password) {
     throw new Error('DOLISTORE_LOGIN and DOLISTORE_PASSWORD are required')
+  }
+  if (data.product.layout) {
+    data.layout = loadLayoutContext(moduleDir, descriptorSource)
   }
   const values = buildFormValues(data, version)
   mkdirSync(outDir, { recursive: true })
@@ -57,7 +62,7 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
       // Uploads reload the page: re-open it so the form (not filled yet) starts from a fresh page
       await openProduct(page, data.product.id)
     }
-    await fillForm(page, values)
+    await fillForm(page, values, { checkStyles: Boolean(data.product.layout) })
     if (stateBefore === 'pending') {
       await keepPendingStatus(page)
     }
@@ -107,7 +112,8 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
 // Creates a NEW product (no id yet). Dry run by default: fills the form and stops. Never touches an existing product.
 export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir, login: email, password }) {
   const data = loadModuleData(moduleDir)
-  const version = readModuleVersion(readFileSync(join(moduleDir, descriptor), 'utf8'))
+  const descriptorSource = readFileSync(join(moduleDir, descriptor), 'utf8')
+  const version = readModuleVersion(descriptorSource)
   if (!existsSync(zipPath)) {
     throw new Error(`zip not found: ${zipPath}`)
   }
@@ -118,6 +124,9 @@ export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir
   }
   if (!email || !password) {
     throw new Error('DOLISTORE_LOGIN and DOLISTORE_PASSWORD are required')
+  }
+  if (data.product.layout) {
+    data.layout = loadLayoutContext(moduleDir, descriptorSource)
   }
   const values = buildFormValues(data, version)
   const create = buildCreateValues(data)
@@ -132,7 +141,7 @@ export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir
     loggedIn = true
     const abortedWrites = dryRun ? await installReadOnlyGuard(page) : []
     await openNewProduct(page)
-    await fillForm(page, values, { creating: true })
+    await fillForm(page, values, { creating: true, checkStyles: Boolean(data.product.layout) })
     await fillCreateExtras(page, create)
     await assertCreateElements(page)
     if (!dryRun) {

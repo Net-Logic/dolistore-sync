@@ -1,7 +1,7 @@
 import { basename } from 'node:path'
 import { hashBuffer } from './screenshots.mjs'
 import {
-  FORM_FIELDS, LOGIN_SELECTORS, parseProductState, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, isEditorSynced, maskSelectors, productHrefPattern, screenshotsMismatch, isImageBody,
+  FORM_FIELDS, LOGIN_SELECTORS, parseProductState, SUBMITTED_PREFIX, compareSubmitted, extractRefusal, formatRefusal, diffCategories, formatStyleLoss, isEditorSynced, maskSelectors, styleDiff, productHrefPattern, screenshotsMismatch, isImageBody,
 } from './checks.mjs'
 
 const BASE = 'https://www.dolistore.com'
@@ -77,11 +77,24 @@ async function setText(page, name, value) {
   if (name.startsWith('description_') && !isEditorSynced(value, result.got)) {
     throw new Error(`description editor not synchronised (${name})`)
   }
+  return result.got
 }
 
-export async function fillForm(page, values, { creating = false } = {}) {
+// checkStyles (description layout on): the HTML the editor gives back must keep the inline styles;
+// every stripped or changed style of every language is listed in one error (dry run included)
+export async function fillForm(page, values, { creating = false, checkStyles = false } = {}) {
+  const styleLosses = []
   for (const [name, value] of Object.entries(values.text)) {
-    await setText(page, name, value)
+    const got = await setText(page, name, value)
+    if (checkStyles && name.startsWith('description_')) {
+      const loss = formatStyleLoss(name, styleDiff(value, got))
+      if (loss) {
+        styleLosses.push(loss)
+      }
+    }
+  }
+  if (styleLosses.length > 0) {
+    throw new Error(`The description layout does not survive DoliStore's editor:\n${styleLosses.join('\n')}`)
   }
   for (const [name, value] of Object.entries(values.selects)) {
     await page.locator(`#product-creation-form select[name="${name}"]`).selectOption(value)

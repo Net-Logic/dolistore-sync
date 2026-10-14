@@ -1,0 +1,34 @@
+# dolistore-sync v0.4.0-rc1 style check, first CI dry run on DoliStore (run 38555826361, 2026-10-14),
+# description_en of relancefactureglobale: what the old layout sent (- lines) and what DoliStore's CKEditor gave back
+# (got instead), both already normalised by the v0.4.0-rc1 normalizeStyle. Timestamps removed.
+description_en: DoliStore's editor stripped or changed 29 inline styles of the layout:
+- strong {color:#324f9b}
+- h2 {background-color:#324f9b; border-radius:5px; color:#ffffff; margin:24px 0 12px 0; padding:8px 14px}
+- td {background-color:#f1f5ff; border-left:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}
+- strong {color:#324f9b}
+- td {background-color:#f1f5ff; border-right:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}
+- strong {color:#324f9b}
+- td {background-color:#f1f5ff; border-left:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}
+- strong {color:#324f9b}
+- td {background-color:#f1f5ff; border-right:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}
+- strong {color:#324f9b}
+- td {background-color:#f1f5ff; border-left:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}
+- strong {color:#324f9b}
+- td {background-color:#f1f5ff; border-right:0; border:8px solid #ffffff; padding:12px 14px; vertical-align:top; width:50%}
+- strong {color:#324f9b}
+- h2 {background-color:#324f9b; border-radius:5px; color:#ffffff; margin:24px 0 12px 0; padding:8px 14px}
+- ol {margin:0; padding-left:22px}
+- h2 {background-color:#324f9b; border-radius:5px; color:#ffffff; margin:24px 0 12px 0; padding:8px 14px}
+- table {border-collapse:separate; border-spacing:0; width:100%}
+- td {background-color:#f1f5ff; border-radius:5px; padding:12px 18px}
+- ul {margin:0; padding-left:22px}
+- h2 {background-color:#324f9b; border-radius:5px; color:#ffffff; margin:24px 0 12px 0; padding:8px 14px}
+- ol {margin:0; padding-left:22px}
+- h2 {background-color:#324f9b; border-radius:5px; color:#ffffff; margin:24px 0 12px 0; padding:8px 14px}
+- a {color:#324f9b}
+- ul {margin:0; padding-left:22px}
+- a {color:#ff4939}
+- a {color:#ff4939}
+- a {color:#ff4939}
+- a {color:#ff4939}
+got instead: td {background-color:#f1f5ff; border-color:#ffffff; border-left:0; border-style:solid; border-width:8px; vertical-align:top; width:50%}, td {background-color:#f1f5ff; border-color:#ffffff; border-right:0; border-style:solid; border-width:8px; vertical-align:top; width:50%}, td {background-color:#f1f5ff; border-color:#ffffff; border-left:0; border-style:solid; border-width:8px; vertical-align:top; width:50%}, td {background-color:#f1f5ff; border-color:#ffffff; border-right:0; border-style:solid; border-width:8px; vertical-align:top; width:50%}, td {background-color:#f1f5ff; border-color:#ffffff; border-left:0; border-style:solid; border-width:8px; vertical-align:top; width:50%}, td {background-color:#f1f5ff; border-color:#ffffff; border-right:0; border-style:solid; border-width:8px; vertical-align:top; width:50%}, table {border-collapse:separate; width:100%}, td {background-color:#f1f5ff; border-radius:5px}

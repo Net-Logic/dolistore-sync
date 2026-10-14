@@ -9,11 +9,18 @@ export function parseLangFile(text) {
     throw new Error('Language file without front matter (--- title / short ---)')
   }
   const meta = parse(match[1]) || {}
-  return {
+  const lang = {
     title: String(meta.title ?? '').trim(),
     short: String(meta.short ?? '').trim(),
     long: match[2].trim(),
   }
+  // Used by the netlogic layout only, kept raw for validate(): start (one line), needs (list of lines)
+  for (const key of ['start', 'needs']) {
+    if (meta[key] !== undefined) {
+      lang[key] = meta[key]
+    }
+  }
+  return lang
 }
 
 export function loadModuleData(moduleDir) {
