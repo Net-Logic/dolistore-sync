@@ -53,11 +53,13 @@ test('unknown Dolibarr version and bad php version fail', () => {
 })
 
 test('bad module version, zip too large and too many screenshots fail', () => {
-  const d = good(); d.screenshots = ['1', '2', '3', '4', '5', '6']
+  const d = good(); d.screenshots = Array.from({ length: 11 }, (_, i) => String(i + 1))
   const errors = validate(d, { version: '1.2.3-beta', zipBytes: 81 * 1024 * 1024 }).join('\n')
   assert.match(errors, /1\.2\.3-beta/)
   assert.match(errors, /80 MB/)
-  assert.match(errors, /5 screenshots/)
+  assert.match(errors, /At most 10 screenshots, got 11/)
+  const ten = good(); ten.screenshots = Array.from({ length: 10 }, (_, i) => String(i + 1))
+  assert.doesNotMatch(validate(ten, { version: '1.2.3' }).join('\n'), /screenshots/)
 })
 
 test('missing product keys are reported', () => {
