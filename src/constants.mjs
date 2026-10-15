@@ -33,7 +33,8 @@ export const CATEGORIES = {
 }
 
 export const MAX_CATEGORIES = 3
-export const MAX_SCREENSHOTS = 5
+// DoliStore enforces no visible limit (a public product shows 14 screenshots on 2026-10-15); 10 is the common ceiling
+export const MAX_SCREENSHOTS = 10
 export const MAX_ZIP_BYTES = 80 * 1024 * 1024
 
 export function dolibarrNumber(label) {
