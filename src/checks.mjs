@@ -214,8 +214,16 @@ export function normalizeStyle(style) {
     .join('; ')
 }
 
-// Table attributes the layout uses for spacing (CKEditor's table dialog exposes them): checked like styles
-const CHECKED_ATTRIBUTES = ['border', 'cellpadding', 'cellspacing']
+// Attributes checked like styles, per tag: the table attributes CKEditor's table dialog exposes, and
+// the image and the link of the layout's banner (and every link): a stripped one is a loss too
+const CHECKED_ATTRIBUTES = {
+  table: ['border', 'cellpadding', 'cellspacing'],
+  img: ['src', 'alt', 'width', 'height'],
+  a: ['href'],
+}
+// CKEditor's image plugin may move width="675" into style="width:675px" (and back): the size of an
+// image is compared as width/height declarations, whichever form holds it
+const SIZE_ATTRIBUTES = { img: ['width', 'height'] }
 
 const attribute = (attrs, name) => {
   const match = attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i'))
@@ -223,28 +231,35 @@ const attribute = (attrs, name) => {
 }
 
 // tag[attributes] {normalised style} of every element carrying a style or a checked attribute, in document order.
-// Only the attributes named in `names` are taken into account.
-function styledTags(html, names = CHECKED_ATTRIBUTES) {
+// Only the attributes named in `checked` ({tag: [names]}) are taken into account.
+function styledTags(html, checked = CHECKED_ATTRIBUTES) {
   const pairs = []
   for (const match of String(html ?? '').matchAll(/<([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
-    const attrs = names.map((name) => [name, attribute(match[2], name)]).filter(([, value]) => value !== null)
-    const style = normalizeStyle(attribute(match[2], 'style') ?? '')
+    const tag = match[1].toLowerCase()
+    const sizes = SIZE_ATTRIBUTES[tag] ?? []
+    const found = (checked[tag] ?? []).map((name) => [name, attribute(match[2], name)]).filter(([, value]) => value !== null)
+    const attrs = found.filter(([name]) => !sizes.includes(name))
+    const sizeStyle = found.filter(([name]) => sizes.includes(name)).map(([name, value]) => `${name}:${/^\d+$/.test(value) ? `${value}px` : value}`)
+    const style = normalizeStyle([attribute(match[2], 'style') ?? '', ...sizeStyle].join(';'))
     if (style || attrs.length > 0) {
-      pairs.push(`${match[1].toLowerCase()}${attrs.map(([name, value]) => `[${name}="${value}"]`).join('')} {${style}}`)
+      pairs.push(`${tag}${attrs.map(([name, value]) => `[${name}="${value}"]`).join('')} {${style}}`)
     }
   }
   return pairs
 }
 
-// Styles and table attributes of the sent HTML that the editor's HTML no longer holds (missing), and the
+// Styles and checked attributes of the sent HTML that the editor's HTML no longer holds (missing), and the
 // styled elements of the editor's HTML that match nothing sent (extra, shown as context). Text is checked elsewhere.
-// Only the table attributes the sent HTML uses are compared: CKEditor adds cellspacing="0" to every table on its
+// Only the attributes the sent HTML uses on a tag are compared: CKEditor adds cellspacing="0" to every table on its
 // own (seen on DoliStore, 2026-10-14), which is not a loss.
 export function styleDiff(expectedHtml, gotHtml) {
-  const sentNames = CHECKED_ATTRIBUTES.filter((name) => new RegExp(`<[a-z][a-z0-9]*\\b[^>]*\\s${name}\\s*=`, 'i').test(String(expectedHtml ?? '')))
-  const got = styledTags(gotHtml, sentNames)
+  const sent = String(expectedHtml ?? '')
+  const used = Object.fromEntries(Object.entries(CHECKED_ATTRIBUTES).map(([tag, names]) => [
+    tag, names.filter((name) => new RegExp(`<${tag}\\b[^>]*\\s${name}\\s*=`, 'i').test(sent)),
+  ]))
+  const got = styledTags(gotHtml, used)
   const missing = []
-  for (const pair of styledTags(expectedHtml, sentNames)) {
+  for (const pair of styledTags(sent, used)) {
     const at = got.indexOf(pair)
     if (at === -1) {
       missing.push(pair)
@@ -260,7 +275,7 @@ export function formatStyleLoss(name, diff) {
   if (diff.missing.length === 0) {
     return null
   }
-  const lines = [`${name}: DoliStore's editor stripped or changed ${diff.missing.length} inline styles or table attributes of the layout:`]
+  const lines = [`${name}: DoliStore's editor stripped or changed ${diff.missing.length} inline styles or attributes of the layout:`]
   lines.push(...diff.missing.map((pair) => `- ${pair}`))
   if (diff.extra.length > 0) {
     lines.push(`got instead: ${diff.extra.join(', ')}`)

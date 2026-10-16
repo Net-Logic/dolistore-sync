@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadModuleData } from './data.mjs'
 import { buildFormValues } from './form.mjs'
+import { BANNER_URL, bannerDataUri } from './layout/banner.mjs'
 import { loadLayoutContext } from './layout/module.mjs'
 import { escapeHtml } from './markdown.mjs'
 import { validate } from './validate.mjs'
@@ -89,7 +90,8 @@ ${asServed(description).trim()}
 }
 
 // --preview: same data loading and validation as a run, then one HTML file per language present.
-// No zip, no login, no browser, no network.
+// No zip, no login, no browser, no network: the banner of the layout is the local image, embedded
+// as a data: URI in place of BANNER_URL (only in the preview; the description sent keeps the URL).
 export function runPreview({ moduleDir, descriptor, outDir }) {
   const data = loadModuleData(moduleDir)
   const descriptorSource = readFileSync(join(moduleDir, descriptor), 'utf8')
@@ -102,6 +104,7 @@ export function runPreview({ moduleDir, descriptor, outDir }) {
     data.layout = loadLayoutContext(moduleDir, descriptorSource)
   }
   const values = buildFormValues(data, version)
+  const banner = data.product.layout ? bannerDataUri() : null
   mkdirSync(outDir, { recursive: true })
   const files = []
   for (const lang of Object.keys(data.langs)) {
@@ -110,7 +113,7 @@ export function runPreview({ moduleDir, descriptor, outDir }) {
       lang,
       title: values.text[`name_${lang}`],
       short: values.text[`short_description_${lang}`],
-      description: values.text[`description_${lang}`],
+      description: banner ? values.text[`description_${lang}`].replaceAll(BANNER_URL, banner) : values.text[`description_${lang}`],
       product: data.product,
       version: toStoreVersion(version),
     }))

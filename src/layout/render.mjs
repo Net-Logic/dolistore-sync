@@ -1,5 +1,6 @@
 import { catalogueLink, pickRelated } from '../catalogue.mjs'
 import { escapeHtml, toInlineHtml } from '../markdown.mjs'
+import { bannerImage } from './banner.mjs'
 import { DOLIBARR_MODULES, LANGUAGE_NAMES, TEXTS } from './i18n.mjs'
 import { moduleName, parseLayoutBody } from './parse.mjs'
 
@@ -35,6 +36,10 @@ export const STYLES = {
   emptyCell: `${gutter('8px', '0px')}; vertical-align:top; width:50%`,
   box: `background-color:${LIGHT_BLUE}; ${gutter('0px', '0px')}`,
   boxInner: `background-color:${LIGHT_BLUE}; ${pad('12px')}`,
+  // Banner: a white bottom border of the outer cell is the space before the intro; the inner cell
+  // (a table of its own, so the two bottom borders never collapse into one) draws the navy line
+  banner: side('bottom', WHITE, '14px'),
+  bannerInner: side('bottom', NAVY, '3px'),
 }
 
 const table = (rows) => `<table style="${STYLES.table}">\n<tbody>\n${rows.join('\n')}\n</tbody>\n</table>`
@@ -43,6 +48,8 @@ const padded = (innerStyle, content) => table([`<tr>\n<td style="${innerStyle}">
 const h2 = (text) => table([`<tr>\n<td style="${STYLES.heading}">\n${padded(STYLES.headingInner, `\n<h2>${text}</h2>\n`)}\n</td>\n</tr>`])
 const ol = (items) => `<ol>\n${items.map((item) => `<li>${item}</li>`).join('\n')}\n</ol>`
 const ul = (items) => `<ul>\n${items.map((item) => `<li>${item}</li>`).join('\n')}\n</ul>`
+// The image on white at its natural size, left-aligned, a full-width navy line under it, then space
+const banner = () => table([`<tr>\n<td style="${STYLES.banner}">\n${padded(STYLES.bannerInner, bannerImage())}\n</td>\n</tr>`])
 const fill = (template, values) => template.replace(/\{(\w+)\}/g, (all, key) => (key in values ? values[key] : all))
 
 function featuresGrid(features) {
@@ -116,10 +123,12 @@ function support(product, t, lang) {
 
 // Description of one language in the netlogic layout. The data must have passed validate():
 // module text only goes through the safe inline Markdown renderer, the tags around it are fixed.
+// The Net Logic banner comes first, the same in every language.
 export function renderLayout({ lang, text, product, context = {} }) {
   const t = TEXTS[lang]
   const body = parseLayoutBody(text.long, lang)
-  const parts = body.intro.map((paragraph) => `<p>${toInlineHtml(paragraph)}</p>`)
+  const parts = [banner()]
+  parts.push(...body.intro.map((paragraph) => `<p>${toInlineHtml(paragraph)}</p>`))
   parts.push(h2(t.features), featuresGrid(body.features))
   if (body.how !== null) {
     parts.push(h2(t.how), ol(body.how.map(toInlineHtml)))

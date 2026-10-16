@@ -11,6 +11,7 @@ import {
 import { SUBMITTED_PREFIX, installReadOnlyGuard, shouldApplyScreenshots } from './checks.mjs'
 import { hashFile, planScreenshots, screenshotMode } from './screenshots.mjs'
 import { coverMode, planCover } from './cover.mjs'
+import { bannerPreflight } from './layout/banner.mjs'
 import { loadLayoutContext } from './layout/module.mjs'
 import { checkPublicPage } from './public.mjs'
 
@@ -33,6 +34,9 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     data.layout = loadLayoutContext(moduleDir, descriptorSource)
   }
   const values = buildFormValues(data, version)
+  // Before the login: a real submit is refused here when the banner image is not served; a dry run
+  // goes on and fails at its end with the same message
+  const bannerProblem = await bannerPreflight({ layout: data.product.layout, dryRun })
   mkdirSync(outDir, { recursive: true })
 
   const browser = await chromium.launch()
@@ -83,9 +87,12 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     // Read-only: what the form currently holds as price (never sent by this tool)
     const currentPrice = (await readFormFields(page)).sale_price
     // Never write the credentials: only the values sent to the form
-    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun, abortedWrites, currentPrice }, null, 2))
+    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, screenshots, zip: basename(zipPath), dryRun, abortedWrites, currentPrice, bannerProblem }, null, 2))
     await takeScreenshot(page, join(outDir, 'dolistore-form.png'), email)
     if (dryRun) {
+      if (bannerProblem) {
+        throw new Error(`Dry run done, nothing submitted, but a real submit would be refused: ${bannerProblem}`)
+      }
       return { submitted: false, values }
     }
     await submit(page, data.product.id, basename(zipPath), values.text)
@@ -104,6 +111,10 @@ export async function run({ moduleDir, descriptor, zipPath, dryRun, outDir, logi
     const warnings = data.product.layout ? await checkPublicPage({ id: data.product.id, text: values.text }) : []
     return { submitted: true, values, warnings }
   } catch (error) {
+    // A dry run stopped by another error still reports the banner problem
+    if (bannerProblem && !error.message.includes(bannerProblem)) {
+      error.message = `${error.message}\nAlso, a real submit would be refused: ${bannerProblem}`
+    }
     if (loggedIn) {
       await takeScreenshot(page, join(outDir, 'dolistore-error.png'), email).catch(() => {})
     }
@@ -134,6 +145,7 @@ export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir
   }
   const values = buildFormValues(data, version)
   const create = buildCreateValues(data)
+  const bannerProblem = await bannerPreflight({ layout: data.product.layout, dryRun })
   mkdirSync(outDir, { recursive: true })
 
   const browser = await chromium.launch()
@@ -152,15 +164,22 @@ export async function runCreate({ moduleDir, descriptor, zipPath, dryRun, outDir
       await uploadZip(page, zipPath)
       await uploadCover(page, data.cover)
     }
-    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, create, zip: basename(zipPath), cover: basename(data.cover), dryRun, abortedWrites }, null, 2))
+    writeFileSync(join(outDir, 'dolistore-values.json'), JSON.stringify({ values, create, zip: basename(zipPath), cover: basename(data.cover), dryRun, abortedWrites, bannerProblem }, null, 2))
     await takeScreenshot(page, join(outDir, 'dolistore-form.png'), email)
     if (dryRun) {
+      if (bannerProblem) {
+        throw new Error(`Dry run done, nothing submitted, but a real creation would be refused: ${bannerProblem}`)
+      }
       return { submitted: false, values }
     }
     const id = await submitCreate(page, { name: values.text.name_en, zipName: basename(zipPath) })
     writeFileSync(join(outDir, 'dolistore-created-id.txt'), `${id}\n`)
     return { submitted: true, values, id }
   } catch (error) {
+    // A dry run stopped by another error still reports the banner problem
+    if (bannerProblem && !error.message.includes(bannerProblem)) {
+      error.message = `${error.message}\nAlso, a real submit would be refused: ${bannerProblem}`
+    }
     if (loggedIn) {
       await takeScreenshot(page, join(outDir, 'dolistore-error.png'), email).catch(() => {})
     }
