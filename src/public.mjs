@@ -26,7 +26,7 @@ export function extractFullDescription(pageHtml) {
 }
 
 // Warning lines for one language: what the public page lost compared with the HTML sent (styles and
-// table attributes, same normalisation as the editor check), or [] when they match
+// checked attributes, same normalisation as the editor check), or [] when they match
 export function publicPageWarnings(name, sentHtml, pageHtml) {
   const description = extractFullDescription(pageHtml)
   if (description === null) {
@@ -40,7 +40,7 @@ export function publicPageWarnings(name, sentHtml, pageHtml) {
   for (const pair of diff.missing) {
     counts.set(pair, (counts.get(pair) ?? 0) + 1)
   }
-  const lines = [`${name}: the public page lost ${diff.missing.length} inline styles or table attributes that were sent (stripped by DoliStore's server):`]
+  const lines = [`${name}: the public page lost ${diff.missing.length} inline styles or attributes that were sent (stripped by DoliStore's server):`]
   lines.push(...[...counts].map(([pair, count]) => `- ${pair}${count > 1 ? ` (x${count})` : ''}`))
   if (diff.extra.length > 0) {
     lines.push(`found instead: ${[...new Set(diff.extra)].join(', ')}`)

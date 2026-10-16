@@ -360,7 +360,7 @@ test('styleDiff: a stripped or changed style is listed', () => {
   ])
   assert.deepEqual(diff.extra, ['td {background-color:#f1f5ff}'])
   const message = formatStyleLoss('description_fr', diff)
-  assert.match(message, /description_fr: DoliStore's editor stripped or changed 1 inline styles or table attributes of the layout/)
+  assert.match(message, /description_fr: DoliStore's editor stripped or changed 1 inline styles or attributes of the layout/)
   assert.match(message, /got instead: td \{background-color:#f1f5ff\}/)
 })
 
@@ -381,4 +381,24 @@ test('styleDiff: an attribute the editor adds on its own (cellspacing="0" on eve
   // An attribute we do send is still checked
   const withPadding = sentHtml.replace('<table style=', '<table cellpadding="12" style=')
   assert.deepEqual(styleDiff(withPadding, gotHtml).missing, ['table[cellpadding="12"] {border-collapse:collapse; width:100%}'])
+})
+
+test('styleDiff: the banner image and its link are checked, a stripped width, height, src or href is listed', () => {
+  assert.match(sent, /<img src="https:\/\/cdn\.jsdelivr\.net\/[^"]+" alt="[^"]+" width="675" height="130">/)
+  const got = simulateDoliStoreEditor(sent)
+  assert.deepEqual(styleDiff(sent, got), { missing: [], extra: [] })
+  const img = '{height:130px; width:675px}'
+  const imgTag = 'img[src="https://cdn.jsdelivr.net/gh/net-logic/dolistore-sync@v0.5.0/assets/netlogic-banner.png"][alt="net logic - dolibarr preferred partner"]'
+  const lost = (html) => styleDiff(sent, html).missing
+  assert.deepEqual(lost(got.replace(' width="675"', '')), [`${imgTag} ${img}`])
+  assert.deepEqual(lost(got.replace(' height="130"', '').replace(' width="675"', '')), [`${imgTag} ${img}`])
+  assert.deepEqual(lost(got.replace(/ src="[^"]*"/, '')), [`${imgTag} ${img}`])
+  assert.deepEqual(lost(got.replace('<a href="https://www.netlogic.fr">', '<a>')), ['a[href="https://www.netlogic.fr"] {}'])
+  assert.match(formatStyleLoss('description_en', styleDiff(sent, got.replace(' width="675"', ''))), /stripped or changed 1 inline styles or attributes of the layout:\n- img\[src=.*\] \{height:130px; width:675px\}\ngot instead: img\[src=.*\] \{height:130px\}/)
+})
+
+test('styleDiff: an image size moved from the attributes to the style (CKEditor\'s image plugin) is not a loss', () => {
+  const sentImg = '<p><img src="https://x.test/a.png" alt="A" width="675" height="130"></p>'
+  assert.deepEqual(styleDiff(sentImg, '<p><img alt="A" src="https://x.test/a.png" style="height:130px; width:675px" /></p>'), { missing: [], extra: [] })
+  assert.deepEqual(styleDiff(sentImg, '<p><img alt="A" src="https://x.test/a.png" style="width:600px" height="130" /></p>').missing, ['img[src="https://x.test/a.png"][alt="a"] {height:130px; width:675px}'])
 })

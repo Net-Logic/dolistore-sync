@@ -31,6 +31,13 @@ test('runPreview writes one file per language present, with the generated layout
   assert.match(en, /border-left-color:#324F9B/)
   assert.match(en, /Required Dolibarr modules: Invoices/)
   assert.ok(!existsSync(join(out, 'de.html')))
+  // The banner is the local image, embedded: the preview opens offline and holds no jsDelivr URL
+  const png = readFileSync(new URL('../assets/netlogic-banner.png', import.meta.url)).toString('base64')
+  for (const lang of ['en', 'fr']) {
+    const html = readFileSync(join(out, `${lang}.html`), 'utf8')
+    assert.ok(html.includes(`<a href="https://www.netlogic.fr"><img src="data:image/png;base64,${png}" alt="Net Logic - Dolibarr Preferred Partner" width="675" height="130"></a>`), lang)
+    assert.doesNotMatch(html, /jsdelivr/)
+  }
 })
 
 test('runPreview refuses invalid data like a real run, and writes nothing', () => {

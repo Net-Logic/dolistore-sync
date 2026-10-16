@@ -44,7 +44,7 @@ test('real live page of 792: the server stripped only the cellpadding/cellspacin
   const warnings = publicPageWarnings('description_en', sent041, public792)
   assert.equal(warnings.length, 1)
   const lines = warnings[0].split('\n')
-  assert.match(lines[0], /^description_en: the public page lost 7 inline styles or table attributes that were sent \(stripped by DoliStore's server\):$/)
+  assert.match(lines[0], /^description_en: the public page lost 7 inline styles or attributes that were sent \(stripped by DoliStore's server\):$/)
   assert.deepEqual(lines.slice(1), [
     '- table[cellpadding="10"][cellspacing="0"] {border-collapse:collapse; width:100%} (x5)',
     '- table[cellpadding="12"][cellspacing="0"] {border-collapse:collapse; width:100%} (x2)',
