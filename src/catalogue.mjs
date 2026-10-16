@@ -81,15 +81,15 @@ export const CATALOGUE = [
     },
   },
   {
-    id: 845, // dolidocusign (c: no dolistore/ folder; name in English only on DoliStore)
-    categories: ['Modules/Plugins', 'CRM - Gestion relation client', 'RH - Ressource humaines', 'Interfaçage externes'],
-    name: { en: 'Docusign for Dolibarr', fr: 'Docusign for Dolibarr', de: 'Docusign for Dolibarr', it: 'Docusign for Dolibarr', es: 'Docusign for Dolibarr' },
+    id: 845, // dolidocusign (a: dolistore/ folder since 2026-10-15)
+    categories: ['Modules/Plugins', 'CRM - Gestion relation client', 'Interfaçage externes'],
+    name: { en: 'DoliDocuSign', fr: 'DoliDocuSign', de: 'DoliDocuSign', it: 'DoliDocuSign', es: 'DoliDocuSign' },
     tagline: {
-      en: 'Electronic signatures certified by Docusign, a trusted third party, from Dolibarr',
-      fr: 'Signatures électroniques certifiées par Docusign, tiers de confiance, depuis Dolibarr',
-      de: 'Elektronische Signaturen, zertifiziert von Docusign als Vertrauensdienst, aus Dolibarr',
-      it: 'Firme elettroniche certificate da Docusign, terza parte fidata, da Dolibarr',
-      es: 'Firmas electrónicas certificadas por Docusign, tercero de confianza, desde Dolibarr',
+      en: 'Proposals, orders, contracts and more signed with DocuSign, the signed PDF stored back',
+      fr: 'Propositions, commandes, contrats et plus signés avec DocuSign, PDF signé récupéré',
+      de: 'Angebote, Aufträge, Verträge und mehr mit DocuSign signieren, signiertes PDF zurück',
+      it: 'Preventivi, ordini, contratti e altro firmati con DocuSign, PDF firmato salvato',
+      es: 'Presupuestos, pedidos, contratos y más firmados con DocuSign, PDF firmado guardado',
     },
   },
   {
