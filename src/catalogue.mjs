@@ -5,8 +5,8 @@
 // product has no text in a language); the tagline is a short neutral form of the "short" text.
 // Catalogue order is the tie-break and the fill-up order of the choice: keep it stable.
 // Left out on 2026-10-14, not publicly active: 659 Yousign REST-V3 (disabled), 1512 DoliEsign
-// (deactivated by the developer), 3707 Order to suppliers and 3710 Office Editor ("no more available",
-// not validated yet). Add them when their page is live.
+// (deactivated by the developer). 3710 Office Editor and 3707 Order to suppliers added on 2026-10-23,
+// once their pages were live.
 export const CATALOGUE = [
   {
     id: 647, // microsoftgraph (a)
@@ -114,6 +114,30 @@ export const CATALOGUE = [
       de: 'Gemeinsame Bibliotheken für die anderen Net-Logic-Module',
       it: 'Librerie comuni usate dagli altri moduli Net-Logic',
       es: 'Bibliotecas comunes usadas por los demás módulos de Net-Logic',
+    },
+  },
+  {
+    id: 3710, // odteditor (a)
+    categories: ['Modules/Plugins', 'GED - Gestion de documents', 'Interface utilisateurs'],
+    name: { en: 'Office Editor', fr: 'Éditeur bureautique', de: 'Office-Editor', it: 'Editor per ufficio', es: 'Editor ofimático' },
+    tagline: {
+      en: 'ODT, DOCX, XLSX and PPTX documents edited in Dolibarr with LibreOffice, in the browser',
+      fr: 'Documents ODT, DOCX, XLSX et PPTX modifiés avec LibreOffice, dans le navigateur',
+      de: 'ODT-, DOCX-, XLSX- und PPTX-Dokumente in Dolibarr mit LibreOffice bearbeitet, im Browser',
+      it: 'Documenti ODT, DOCX, XLSX e PPTX modificati in Dolibarr con LibreOffice, nel browser',
+      es: 'Documentos ODT, DOCX, XLSX y PPTX editados en Dolibarr con LibreOffice, en el navegador',
+    },
+  },
+  {
+    id: 3707, // ordertosupplier (a)
+    categories: ['Modules/Plugins', 'Produits, services ou stocks', 'Projets ou collaboratif'],
+    name: { en: 'Order to suppliers', fr: 'Commande aux fournisseurs', de: 'Bestellung bei Lieferanten', it: 'Ordini ai fornitori', es: 'Pedidos a proveedores' },
+    tagline: {
+      en: 'Purchase orders and supplier price requests from a sales order, linked line by line',
+      fr: 'Commandes fournisseurs et demandes de prix depuis une commande client, liées ligne à ligne',
+      de: 'Lieferantenbestellungen und Preisanfragen aus einem Kundenauftrag, zeilenweise verknüpft',
+      it: 'Ordini fornitore e richieste di prezzo da un ordine cliente, collegati riga per riga',
+      es: 'Pedidos a proveedores y solicitudes de precio desde un pedido de cliente, línea a línea',
     },
   },
 ]
