@@ -85,11 +85,11 @@ export const CATALOGUE = [
     categories: ['Modules/Plugins', 'CRM - Gestion relation client', 'Interfaçage externes'],
     name: { en: 'Envelope Sign', fr: 'Envelope Sign', de: 'Envelope Sign', it: 'Envelope Sign', es: 'Envelope Sign' },
     tagline: {
-      en: 'Proposals, orders, contracts and more signed with DocuSign, the signed PDF stored back',
-      fr: 'Propositions, commandes, contrats et plus signés avec DocuSign, PDF signé récupéré',
-      de: 'Angebote, Aufträge, Verträge und mehr mit DocuSign signieren, signiertes PDF zurück',
-      it: 'Preventivi, ordini, contratti e altro firmati con DocuSign, PDF firmato salvato',
-      es: 'Presupuestos, pedidos, contratos y más firmados con DocuSign, PDF firmado guardado',
+      en: 'Proposals, orders, contracts and more signed with DocuSign®, the signed PDF stored back',
+      fr: 'Propositions, commandes, contrats et plus signés avec DocuSign®, PDF signé récupéré',
+      de: 'Angebote, Aufträge, Verträge und mehr mit DocuSign® signieren, signiertes PDF zurück',
+      it: 'Preventivi, ordini, contratti e altro firmati con DocuSign®, PDF firmato salvato',
+      es: 'Presupuestos, pedidos, contratos y más firmados con DocuSign®, PDF firmado guardado',
     },
   },
   {
