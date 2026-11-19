@@ -83,7 +83,7 @@ export const CATALOGUE = [
   {
     id: 845, // dolidocusign (a: dolistore/ folder since 2026-10-15)
     categories: ['Modules/Plugins', 'CRM - Gestion relation client', 'Interfaçage externes'],
-    name: { en: 'DoliDocuSign', fr: 'DoliDocuSign', de: 'DoliDocuSign', it: 'DoliDocuSign', es: 'DoliDocuSign' },
+    name: { en: 'Envelope Sign', fr: 'Envelope Sign', de: 'Envelope Sign', it: 'Envelope Sign', es: 'Envelope Sign' },
     tagline: {
       en: 'Proposals, orders, contracts and more signed with DocuSign, the signed PDF stored back',
       fr: 'Propositions, commandes, contrats et plus signés avec DocuSign, PDF signé récupéré',
